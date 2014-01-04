@@ -1,1 +1,1 @@
-mod media_server_v4;
+pub mod media_server_v4;

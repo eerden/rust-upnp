@@ -1,0 +1,76 @@
+<?xml version="1.0"?>
+<root xmlns="urn:schemas-upnp-org:device-1-0">
+    <specVersion>
+        <major>1</major>
+        <minor>0</minor>
+    </specVersion>
+    <device>
+        <deviceType>
+            urn:schemas-upnp-org:device:MediaServer:4
+        </deviceType>
+        <friendlyName>Zap</friendlyName>
+        <manufacturer>Ercan Erden</manufacturer>
+        <modelDescription>Zap Media Server For Linux</modelDescription>
+        <modelName>Zap-UPNP</modelName>
+        <UDN>uuid:4d696e69-444c-164e-9d41-e0cb4ebb5911</UDN>
+        <iconList>
+            <icon>
+                <mimetype>image/format</mimetype>
+                <width>horizontal pixels</width>
+                <height>vertical pixels</height>
+                <depth>color depth</depth>
+                <url>URL to icon</url>
+            </icon>
+            XML to declare other icons, if any, go here
+        </iconList>
+        <serviceList>
+            <service>
+                <serviceType>
+                    urn:schemas-upnp-org:service:ContentDirectory:4
+                </serviceType>
+                <serviceId>
+                    urn:upnp-org:serviceId:ContentDirectory
+                </serviceId>
+                <SCPDURL>/content_dir.xml</SCPDURL>
+                <controlURL>/control/content_dir.xml</controlURL>
+                <eventSubURL>/event/content_dir.xml</eventSubURL>
+            </service>
+            <service>
+                <serviceType>
+                    urn:schemas-upnp-org:service:ConnectionManager:3
+                </serviceType>
+                <serviceId>
+                    urn:upnp-org:serviceId:ConnectionManager
+                </serviceId>
+                <SCPDURL>/connection_manager.xml</SCPDURL>
+                <controlURL>/control/connection_manager</controlURL>
+                <eventSubURL>/event/connection_manager</eventSubURL>
+            </service>
+            <service>
+                <serviceType>
+                    urn:schemas-upnp-org:service:AVTransport:3
+                </serviceType>
+                <serviceId>urn:upnp-org:serviceId:AVTransport</serviceId>
+                <SCPDURL>/av_transport.xml</SCPDURL>
+                <controlURL>/control/av_transport</controlURL>
+                <eventSubURL>/event/av_transport</eventSubURL>
+            </service>
+            <service>
+                <serviceType>
+                    urn:schemas-upnp-org:service:ScheduledRecording:2
+                </serviceType>
+                <serviceId>
+                    urn:upnp-org:serviceId:ScheduledRecording
+                </serviceId>
+                <SCPDURL>URL to service description</SCPDURL>
+                <controlURL>URL for control</controlURL>
+                <eventSubURL>URL for eventing</eventSubURL>
+            </service>
+        </serviceList>
+        <deviceList>
+            Description of embedded devices added by UPnP vendor
+            (if any) go here
+        </deviceList>
+        <presentationURL>URL for presentation</presentationURL>
+    </device>
+</root>

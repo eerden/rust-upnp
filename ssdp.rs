@@ -18,13 +18,14 @@ pub fn advertise(messages: ~[~str]) -> Chan<bool> {
                 }
                 _         =>{
                     for m in messages.iter() {
+                        timer.sleep(10);
                         socket.sendto(m.as_bytes(), socket_addr);
                     }
 
                 }
 
             }
-            timer.sleep(1000);
+            timer.sleep(3000);
         }
     }
     kill_chan
