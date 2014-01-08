@@ -1,11 +1,17 @@
-use service::content_directory_v4::ContentDirectory;
-use service::connection_manager_v3::ConnectionManager;
-use service::av_transport_v3::AvTransport;
+use super::content_directory_v4::ContentDirectory;
+use super::connection_manager_v3::ConnectionManager;
+use super::av_transport_v3::AvTransport;
 
 struct MediaServer {
-    av_trans : ~AvTransport,
-    conn_man : ~ConnectionManager,
+    //av_trans : ~AvTransport,
+    //conn_man : ~ConnectionManager,
     cont_dir : ~ContentDirectory 
+}
+
+
+fn new(desc_xml: &str) -> MediaServer {
+    let cd = ~ContentDirectory{service_reset_token: ~"12345"};
+    MediaServer{cont_dir: cd}
 }
 
 pub fn get_messages() -> ~[~str]{
