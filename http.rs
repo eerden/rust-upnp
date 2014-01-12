@@ -5,27 +5,31 @@ use std::io::Listener;
 use std::io::Acceptor;
 use std::hashmap::HashMap;
 use std::comm::SharedChan;
+use std::comm::Chan;
 use std::io::timer::Timer;
+use super::media_server_v4::MediaServer;
 
-pub fn listen (addr: &str, func: fn(Request) -> ~[u8]){
-    let socket_addr = from_str(addr).unwrap();
-    let mut listener = TcpListener::bind(socket_addr);
-    let mut acceptor = listener.listen().unwrap();
-    loop {
-        println("boom");
+pub fn listen (dev: &MediaServer, addr: &str, func: fn(Request) -> ~[u8]) {
+    let address = addr.to_owned();
+    do spawn {
+        let socket_addr = from_str(address).unwrap();
+        let mut listener = TcpListener::bind(socket_addr);
+        let mut acceptor = listener.listen().unwrap();
+        loop {
 
-        let stream = match acceptor.accept(){
-            Some(s) => s,
-            None    => fail!("Can't get a TcpStream from the std::io::Acceptor!")
-        };
+            let stream = match acceptor.accept(){
+                Some(s) => s,
+                None    => fail!("Can't get a TcpStream from the std::io::Acceptor!")
+            };
 
-        do spawn{
-            let mut timer = Timer::new().unwrap();
-            timer.sleep(1);
-            let (request, mut stream) = Request::new(stream);
-            let response = func(request);
-            println(response.len().to_str());
-            stream.write(response);
+            do spawn{
+                let mut timer = Timer::new().unwrap();
+                timer.sleep(1);
+                let (request, mut stream) = Request::new(stream);
+                let response = func(request);
+                println(response.len().to_str());
+                stream.write(response);
+            }
         }
     }
 }
@@ -67,7 +71,7 @@ impl Request {
         };
         let url = parts[1].to_owned();
         let http_info = parts[2].to_owned();
-(method,url,http_info)
+        (method,url,http_info)
     }
 
     //Returns the stream back and the  header part of the requests as a ~str array.

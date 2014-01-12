@@ -14,12 +14,12 @@ use sqlite::types::{SQLITE_ROW,SQLITE_ERROR,BindArg,Text,Integer};
 #[test]
 
 fn test_http(){
-    //update_db();
-    //return;
-    let c = advertise();
-    do spawn{
-        upnp::http::listen("192.168.1.3:8900",handle);
-    }
+    ////update_db();
+    ////return;
+    //let c = advertise();
+    //do spawn{
+        //upnp::http::listen("192.168.1.3:8900",handle);
+    //}
 }
 
 fn handle(req:Request) -> ~[u8]{
