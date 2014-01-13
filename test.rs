@@ -1,6 +1,7 @@
 extern mod upnp;
 extern mod xml;
 extern mod sqlite;
+use std::io::stdio::println;
 use std::path::Path;
 use upnp::http::Request;
 use std::io::net::tcp::TcpStream;

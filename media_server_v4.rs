@@ -8,7 +8,7 @@ use std::comm::SharedChan;
 use std::comm::Chan;
 use super::http;
 use std::io::SeekSet;
-
+use std::io::stdio::println;
 pub struct MediaServer {
     //av_trans : ~AvTransport,
     //conn_man : ~ConnectionManager,
@@ -32,7 +32,7 @@ impl MediaServer {
 
     pub fn up(&mut self) {
         let ssdp_kill_chan = ssdp::advertise(self.get_messages());
-        http::listen(self,self.http_addr.clone(),handle);
+        http::listen(self.http_addr.clone(),handle);
         println("Server up.");
     }
 
@@ -86,7 +86,7 @@ NTS:ssdp:alive\r\n");
     out 
 }
 
-fn handle(&self, req:Request) -> ~[u8]{
+fn handle(req:Request) -> ~[u8]{
     println("handle function called...");
     println(req.to_str());
     let (method, url)  = (req.method.clone(), req.url.clone());
@@ -179,7 +179,6 @@ fn send_video(req: Request) -> ~[u8] {
         None => (),
         Some(r) => {
             start = get_byte_range(r);
-            //println("RRRR:" + start.to_str());
         },
     }
     

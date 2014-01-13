@@ -1,4 +1,5 @@
 use std::io::net::tcp::TcpStream;
+use std::io::stdio::println;
 use std::str;
 pub use std::io::net::tcp::TcpListener;
 use std::io::Listener;
@@ -9,7 +10,7 @@ use std::comm::Chan;
 use std::io::timer::Timer;
 use super::media_server_v4::MediaServer;
 
-pub fn listen (dev: &MediaServer, addr: &str, func: fn(Request) -> ~[u8]) {
+pub fn listen (addr: &str, func: fn(Request) -> ~[u8]) {
     let address = addr.to_owned();
     do spawn {
         let socket_addr = from_str(address).unwrap();
