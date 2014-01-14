@@ -1,5 +1,9 @@
+extern mod extra;
 use std::io::net::tcp::TcpStream;
+use std::io::SeekSet;
+use std::io::{File,fs};
 use std::io::stdio::println;
+use super::content_directory_v4::ContentDirectory;
 use std::str;
 pub use std::io::net::tcp::TcpListener;
 use std::io::Listener;
@@ -9,8 +13,11 @@ use std::comm::SharedChan;
 use std::comm::Chan;
 use std::io::timer::Timer;
 use super::media_server_v4::MediaServer;
+use std::sync::arc::UnsafeArc;
 
-pub fn listen (addr: &str, func: fn(Request) -> ~[u8]) {
+use extra::arc::MutexArc;
+
+pub fn listen (addr: &str) {
     let address = addr.to_owned();
     do spawn {
         let socket_addr = from_str(address).unwrap();
@@ -23,17 +30,151 @@ pub fn listen (addr: &str, func: fn(Request) -> ~[u8]) {
                 None    => fail!("Can't get a TcpStream from the std::io::Acceptor!")
             };
 
-            do spawn{
-                let mut timer = Timer::new().unwrap();
-                timer.sleep(1);
-                let (request, mut stream) = Request::new(stream);
-                let response = func(request);
-                println(response.len().to_str());
-                stream.write(response);
+            do spawn {
+                gogo(stream);
             }
         }
     }
 }
+
+fn gogo(mut s: TcpStream) {
+    loop {
+        println("Loopy------------------------------------------------------------------------------------------");
+        let request = Request::new(&mut s);
+        let response = handle(request);
+        println!("---writing response, length: {} bytes", response.len());
+        s.write(response);
+        println("---done writing response");
+    }
+}
+
+fn get_byte_range(rstr: &str) -> i64{
+    //bytes=[start]-[end]
+    //bytes=[start]- for to the end
+    let mut out : i64 = 0;
+    let s = rstr.trim().slice_from(6);;
+    let dash_pos = match s.find('-') {
+        Some(pos)   => pos,
+        None        => fail!("Can't find the '-' in Range header")
+
+    };
+    if s.len() > dash_pos + 1 {
+        //more after '-'
+
+    } else { 
+        let intstr = s.slice_to(dash_pos );
+        out = match from_str(intstr) {
+            Some(bytes)   => bytes,
+            None        => fail!("Can't find the '-' in Range header")
+        };
+    }
+
+    out
+}
+
+fn send_video(req: Request) -> ~[u8] {
+    println("Video requested.");
+    //'/MediaItems/[id].avi'
+    if req.url.len() < 12 { return ~[]}
+    let mut url = req.url.slice_from(12);
+    let dot_pos = match url.find('.') {
+        Some(pos)   => pos,
+        None        => fail!("Can't find the '.' in file name")
+    };
+
+    let id : int = match from_str(url.slice_to(dot_pos)) {
+        Some(num)   => num,
+        None        => fail!("Can't make an int from id string.")
+    };
+
+    let vid_path = Path::new(ContentDirectory::get_item_url(id));
+
+    let mut start : i64 = 0;
+    match req.headers.find_copy(&~"Range") {
+        None => (),
+        Some(r) => {
+            start = get_byte_range(r);
+        },
+    }
+
+    let mut response : ~[u8] = ~[];
+    let img_headers = default_img_headers();
+    //let path = Path::new("/home/ercan/StreamMedia/Series/South Park/Season 17/S17E01 - Let Go Let Gov.mp4");
+    let mut file = File::open(&vid_path);
+    file.seek(start, SeekSet);
+    let buf = file.read_to_end();
+
+    let content_length_header = ("Content-Length: " + buf.len().to_str() + "\r\n\r\n").into_bytes();
+    response.push_all_move(img_headers);
+    response.push_all_move(content_length_header);
+    response.push_all_move(buf);
+    response
+
+}
+fn send_xml_file(filename: &str, req: Request) -> ~[u8]{
+    let mut response : ~[u8] = ~[];
+    let xml_headers = default_xml_headers();
+    let path = Path::new("/home/ercan/rust/src/upnp/" + filename);
+    let mut file = File::open(&path);
+    let buf = file.read_to_end();
+    let content_length_header = ("Content-Length: " + buf.len().to_str() + "\r\n\r\n").into_bytes();
+    response.push_all_move(xml_headers);
+    response.push_all_move(content_length_header);
+    response.push_all_move(buf);
+    println(::std::str::from_utf8(response));
+    response
+}
+
+fn send_icon(filename: &str, req: Request) -> ~[u8] {
+    let mut response : ~[u8] = ~[];
+    let img_headers = default_img_headers();
+    let path = Path::new("/home/ercan/rust/src/upnp/" + filename);
+    let mut file = File::open(&path);
+    let buf = file.read_to_end();
+    let content_length_header = ("Content-Length: " + buf.len().to_str() + "\r\n\r\n").into_bytes();
+    response.push_all_move(img_headers);
+    response.push_all_move(content_length_header);
+    response.push_all_move(buf);
+    response
+}
+
+
+fn handle(req:Request) -> ~[u8]{
+    println("handle function called...");
+    println("==================START REQUEST==============");
+    println(req.to_str());
+    println("==================END REQUEST==============");
+    let (method, url)  = (req.method.clone(), req.url.clone());
+    match (method, url) {
+        (GET, ~"/icon.png") => {
+            println("Icon requested.");
+            send_icon("icon.png",req)
+        },
+        (GET, ~"/rootDesc.xml") => {
+            println("Root doc requested.");
+            send_xml_file("rootDesc.xml",req)
+        },
+        (GET,~"/content_dir.xml") => {
+            println("Content directory service SCPD doc requested.");
+            send_xml_file("content_dir.xml",req)
+        },
+
+        (POST,~"/control/content_dir") => {
+            println("Content directory service control command.");
+            ContentDirectory::browse(req)
+        }
+
+        (GET, _) => {
+            send_video(req)
+        }
+
+        (POST, _) => {
+            fail!("This is not cool.");
+        }
+
+    }
+}
+
 
 pub struct Request {
     method: Method,
@@ -44,20 +185,20 @@ pub struct Request {
 }
 
 impl Request {
-    fn new(mut stream: TcpStream) -> (Request, TcpStream){
-        let (mut header_lines, stream) = Request::get_header_lines(stream);
+    fn new(mut stream: &mut TcpStream) -> Request {
+        let mut header_lines = Request::get_header_lines(stream);
         let method_line = header_lines.shift();
         let (method, url, http_info) = Request::method_url_and_http(method_line);
         let headers = Request::get_headers(header_lines);
-        let (body,stream) = match method {
+        let body = match method {
             POST => {
                 let len_str = (headers.get(&~"Content-Length"));
                 let len : int = from_str(*len_str).unwrap();
                 Request::get_body(stream,len)
             }
-            _    => (None,stream)
+            _    => None
         };
-        (Request{method: method, url: url, http_info: http_info, headers:headers, body: body},stream)
+        Request{method: method, url: url, http_info: http_info, headers:headers, body: body}
     }
 
 
@@ -77,7 +218,7 @@ impl Request {
 
     //Returns the stream back and the  header part of the requests as a ~str array.
     //This stops at the point where '\r\n\r\n' is reached.
-    fn get_header_lines(mut stream: TcpStream) -> (~[~str], TcpStream){
+    fn get_header_lines(mut stream: &mut TcpStream) -> ~[~str] {
         let mut got_rn = false;
         let mut line : ~[u8] = ~[];
         let mut out : ~[~str] = ~[];
@@ -106,10 +247,10 @@ impl Request {
                 out.push(l.to_owned());
             }
         }
-        (out, stream)
+        out
     }
 
-    fn get_body(mut stream: TcpStream, len: int) -> (Option<~str>,TcpStream){
+    fn get_body(stream: &mut TcpStream, len: int) -> Option<~str> {
         let mut out : ~[u8] = ~[];
         let mut counter = 0;
         loop {
@@ -125,7 +266,7 @@ impl Request {
                 break;
             }
         }
-        (Some(str::from_utf8(out).to_owned()),stream)
+        Some(str::from_utf8(out).to_owned())
     }
 
     fn get_headers(lines : ~[~str]) -> HashMap<~str,~str>{
@@ -202,14 +343,18 @@ impl  Eq for Method {
 
 //TODO: This is here just to make things work for the moment. Find a better way of doing this.
 pub fn default_xml_headers() -> ~[u8]{
-    let out :~str = ~"HTTP/1.1 200 OK\r\nContent-Type: text/xml; charset=\"utf-8\"\r\n\r\n";
+    let out :~str = ~"HTTP/1.1 200 OK\r\nConnection: Keep-Alive\r\nContent-Type: text/xml; charset=\"utf-8\"\r\n";
     out.into_bytes()
 
 }
 
 //TODO: This is here just to make things work for the moment. Find a better way of doing this.
 pub fn default_img_headers() -> ~[u8]{
-    let out :~str = ~"HTTP/1.1 200 OK\r\nContent-Type: image/png\r\n\r\n";
+    let out :~str = ~"HTTP/1.1 200 OK\r\nConnection: Keep-Alive\r\nContent-Type: image/png\r\n";
     out.into_bytes()
 
+}
+//TODO: Make this an HTTP error message.
+fn send_empty() -> ~[u8]{
+    ~[]
 }

@@ -22,7 +22,6 @@ pub struct MediaServer {
 
 }
 
-
 impl MediaServer {
     pub  fn new(desc_xml: &str, addr: &str) -> MediaServer {
         let cd = ~ContentDirectory{service_reset_token: ~"12345"};
@@ -32,7 +31,7 @@ impl MediaServer {
 
     pub fn up(&mut self) {
         let ssdp_kill_chan = ssdp::advertise(self.get_messages());
-        http::listen(self.http_addr.clone(),handle);
+        http::listen(self.http_addr.clone());
         println("Server up.");
     }
 
@@ -111,15 +110,6 @@ fn handle(req:Request) -> ~[u8]{
             ContentDirectory::browse(req)
         }
 
-        //(POST,~"/control/connection_manager") => println("Connection manager service control command."),
-        //(POST,~"/control/av_transport") => println("AV transport service control command."),
-
-        //(POST,~"/event/content_dir") => println("Content directory service event command."),
-        //(POST,~"/event/connection_manager") => println("Connection manager service event command."),
-        //(POST,~"/event/av_transport") => println("AV transport service event command."),
-
-        //<res size="736247658" duration="1:37:06.195" bitrate="126368" sampleFrequency="48000" nrAudioChannels="2" resolution="576x304" protocolInfo="http-get:*:video/x-msvideo:*"> http://192.168.1.3:8200/MediaItems/322.avi</res>
-
         (GET, url) => {
             send_video(req)
 
@@ -127,6 +117,7 @@ fn handle(req:Request) -> ~[u8]{
 
     }
 }
+
 fn get_byte_range(rstr: &str) -> i64{
     //bytes=[start]-[end]
     //bytes=[start]- for to the end
@@ -157,21 +148,21 @@ fn send_video(req: Request) -> ~[u8] {
     let mut url = req.url.slice_from(12);
     println("what");
     let dot_pos = match url.find('.') {
-            Some(pos)   => pos,
-            None        => fail!("Can't find the '.' in file name")
+        Some(pos)   => pos,
+        None        => fail!("Can't find the '.' in file name")
     };
 
     println(url);
     println(dot_pos.to_str());
     let id : int = match from_str(url.slice_to(dot_pos)) {
-            Some(num)   => num,
-            None        => fail!("Can't make an int from id string.")
+        Some(num)   => num,
+        None        => fail!("Can't make an int from id string.")
     };
 
     let vid_path = Path::new(ContentDirectory::get_item_url(id));
 
 
-    
+
     println("ID:" + id.to_str());
 
     let mut start : i64 = 0;
@@ -181,7 +172,7 @@ fn send_video(req: Request) -> ~[u8] {
             start = get_byte_range(r);
         },
     }
-    
+
     let mut response : ~[u8] = ~[];
     let img_headers = http::default_img_headers();
     //let path = Path::new("/home/ercan/StreamMedia/Series/South Park/Season 17/S17E01 - Let Go Let Gov.mp4");
