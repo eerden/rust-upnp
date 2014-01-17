@@ -14,16 +14,11 @@ pub struct ContentDirectory{
 }
 
 impl ContentDirectory {
-    pub fn get_search_capabilities() -> ~str {~""}
-    pub fn get_sort_capabilities() -> ~str {~""}
-    pub fn get_feature_list() -> ~str {
-        ~r#"<?xml version="1.0" encoding="UTF-8"?>
-    <Features xmlns="urn:schemas-upnp-org:av:avs" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation=" urn:schemas-upnp-org:av:avs http://www.upnp.org/schemas/av/avs.xsd">
-    </Features>"#
-    } 
-
-    pub fn get_system_update_id() -> ~str {~""}
-    pub fn get_service_reset_token() -> ~str {~""}
+    pub fn get_search_capabilities(){}
+    pub fn get_sort_capabilities(){}
+    pub fn get_feature_list(){} 
+    pub fn get_system_update_id(){}
+    pub fn get_service_reset_token(){}
     pub fn browse(mut req: Request){
         let mut response : ~[u8] = ~[];
         let mut reqxml : Element = from_str(req.body.clone().unwrap()).unwrap();
