@@ -1,183 +1,36 @@
-extern mod extra;
-use std::str;
-use std::io::net::tcp::TcpStream;
+use std::comm::SharedChan;
+use std::hashmap::HashMap;
+use std::io::Acceptor;
+use std::io::Listener;
 use std::io::SeekSet;
 use std::io::buffered::BufferedReader;
-use std::io::{File,fs};
-use std::io::stdio::println;
-use super::content_directory_v4::ContentDirectory;
 use std::io::net::tcp::TcpListener;
-use std::io::Listener;
-use std::io::Acceptor;
-use std::hashmap::HashMap;
+use std::io::net::tcp::TcpStream;
+use std::io::stdio::println;
+use std::io::{File,fs};
+use std::str;
+use super::content_directory_v4::ContentDirectory;
 
 
-pub fn listen (addr: &str) {
+pub fn listen (addr: &str, server_chan: ~SharedChan<Request>) {
     let address = addr.to_owned();
     do spawn {
         let socket_addr = from_str(address).unwrap();
         let mut listener = TcpListener::bind(socket_addr);
         let mut acceptor = listener.listen().unwrap();
         loop {
-
             let stream = match acceptor.accept(){
                 Some(s) => s,
                 None    => fail!("Can't get a TcpStream from the std::io::Acceptor!")
             };
-
+            let  chan = server_chan.clone();
             do spawn {
                 let request = Request::new(stream);
-                handle(request);
+                chan.try_send(request);
             }
         }
     }
 }
-
-
-//TODO: For every video MediaHouse tries things like videoname.{srt,txt...}.
-//Send a proper 404 msg.
-fn get_byte_range(rstr: &str) -> i64{
-    //bytes=[start]-[end]
-    //bytes=[start]- for to the end
-    let mut out : i64 = 0;
-    let s = rstr.trim().slice_from(6);;
-    let dash_pos = match s.find('-') {
-        Some(pos)   => pos,
-        None        => fail!("Can't find the '-' in Range header")
-
-    };
-    if s.len() > dash_pos + 1 {
-        //more after '-'
-
-    } else { 
-        let intstr = s.slice_to(dash_pos );
-        out = match from_str(intstr) {
-            Some(bytes)   => bytes,
-            None        => fail!("Can't find the '-' in Range header")
-        };
-    }
-
-    out
-}
-
-fn send_video(mut req: Request) {
-    loop {
-    println("Video requested.");
-    //'/MediaItems/[id].avi'
-    if req.url.len() < 12 { return }
-    let mut url = req.url.slice_from(12);
-    let dot_pos = match url.find('.') {
-        Some(pos)   => pos,
-        None        => fail!("Can't find the '.' in file name")
-    };
-
-    let id : int = match from_str(url.slice_to(dot_pos)) {
-        Some(num)   => num,
-        None        => fail!("Can't make an int from id string.")
-    };
-
-    let vid_path = Path::new(ContentDirectory::get_item_url(id));
-
-    let mut start : i64 = 0;
-    match req.headers.find_copy(&~"Range") {
-        None => (),
-        Some(r) => {
-            start = get_byte_range(r);
-        },
-    }
-
-    let mut response : ~[u8] = ~[];
-    let img_headers = default_img_headers();
-    let mut file = File::open(&vid_path);
-    file.seek(start, SeekSet);
-    let pos = file.tell();
-    println!("Start position: {} ", pos.to_str());
-    let file_length = ::std::io::fs::stat(&vid_path).size;
-    let content_length = file_length - pos;
-    //let buf = file.read_to_end();
-    let mut buf = BufferedReader::new(file);
-
-    let content_length_header = ("Content-Length: " + content_length.to_str() + "\r\n\r\n").into_bytes();
-
-    req.stream.write(img_headers);
-    req.stream.write(content_length_header);
-
-    loop {
-        match buf.read_byte() {
-            //Some(b) => {req.stream.write_u8(b);println("Got one byte...")},
-            Some(b) => req.stream.write_u8(b),
-            None    => break
-        }
-
-    }
-
-    }
-}
-
-fn send_xml_file(filename: &str, mut req: Request) {
-    let mut response : ~[u8] = ~[];
-    let xml_headers = default_xml_headers();
-    let path = Path::new("/home/ercan/rust/src/upnp/" + filename);
-    let mut file = File::open(&path);
-    let buf = file.read_to_end();
-    let content_length_header = ("Content-Length: " + buf.len().to_str() + "\r\n\r\n").into_bytes();
-    response.push_all_move(xml_headers);
-    response.push_all_move(content_length_header);
-    response.push_all_move(buf);
-    println(::std::str::from_utf8(response));
-    req.stream.write(response);
-}
-
-fn send_icon(filename: &str, req: Request) -> ~[u8] {
-    let mut response : ~[u8] = ~[];
-    let img_headers = default_img_headers();
-    let path = Path::new("/home/ercan/rust/src/upnp/" + filename);
-    let mut file = File::open(&path);
-    let buf = file.read_to_end();
-    let content_length_header = ("Content-Length: " + buf.len().to_str() + "\r\n\r\n").into_bytes();
-    response.push_all_move(img_headers);
-    response.push_all_move(content_length_header);
-    response.push_all_move(buf);
-    response
-}
-
-
-fn handle(req:Request) {
-    println("handle function called...");
-    println("==================START REQUEST==============");
-    println(req.to_str());
-    println("==================END REQUEST==============");
-    let (method, url)  = (req.method.clone(), req.url.clone());
-    match (method, url) {
-        (GET, ~"/icon.png") => {
-            println("Icon requested.");
-            send_icon("icon.png",req);
-        },
-        (GET, ~"/rootDesc.xml") => {
-            println("Root doc requested.");
-            send_xml_file("rootDesc.xml",req);
-        },
-        (GET,~"/content_dir.xml") => {
-            println("Content directory service SCPD doc requested.");
-            send_xml_file("content_dir.xml",req);
-        },
-
-        (POST,~"/control/content_dir") => {
-            println("Content directory service control command.");
-            ContentDirectory::browse(req);
-        }
-
-        (GET, _) => {
-            send_video(req);
-        }
-
-        (POST, _) => {
-            fail!("This is not cool.");
-        }
-
-    }
-}
-
 
 pub struct Request {
     method: Method,
@@ -220,7 +73,7 @@ impl Request {
         (method,url,http_info)
     }
 
-    //Returns the stream back and the  header part of the requests as a ~str array.
+    //Returns the header part of the requests as a ~str array.
     //This stops at the point where '\r\n\r\n' is reached.
     fn get_header_lines(mut stream: &mut TcpStream) -> ~[~str] {
         let mut got_rn = false;
@@ -286,6 +139,7 @@ impl Request {
 
 }
 
+//Use for debugging.
 impl ToStr for Request{
     fn to_str(&self) -> ~str{
         let met  = "\nMETHOD    : " + self.method.to_str() + "\n";

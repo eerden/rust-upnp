@@ -9,12 +9,12 @@ pub fn advertise(messages: ~[~str]) {
         let mut socket = UdpSocket::bind(socket_addr).unwrap(); 
         let mut timer = Timer::new().unwrap();
         loop {
+            timer.sleep(5000);
             for m in messages.iter() {
                 timer.sleep(10);
                 socket.sendto(m.as_bytes(), socket_addr);
             }
         }
-        timer.sleep(3000);
     }
 }
 

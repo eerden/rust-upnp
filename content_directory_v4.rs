@@ -8,30 +8,41 @@ use sqlite::database::Database;
 use sqlite::types::{SQLITE_ROW,SQLITE_ERROR,BindArg,Text,Integer};
 use std::str;
 use std::io::fs;
+use sqlite::database::Database;
 
 pub struct ContentDirectory{
-    srt: ~str
+    db: Database
 }
 
 impl ContentDirectory {
+
+    pub fn new() -> ContentDirectory {
+        let path = "/home/ercan/rust/src/upnp/library.db";
+        let db = match sqlite::open(path) {
+            Ok(db)  => db,
+            Err(m)  => fail!(m)
+        };
+
+        ContentDirectory{db: db}
+    }
+
     pub fn get_search_capabilities(){}
     pub fn get_sort_capabilities(){}
     pub fn get_feature_list(){} 
     pub fn get_system_update_id(){}
     pub fn get_service_reset_token(){}
-    pub fn browse(mut req: Request){
+    pub fn browse(&self, mut req: Request){
         let mut response : ~[u8] = ~[];
         let mut reqxml : Element = from_str(req.body.clone().unwrap()).unwrap();
 
-        let result = get_content_as_xml(~reqxml).into_bytes();
-        //println(result);
+        let result = self.get_content_as_xml(~reqxml).into_bytes();
 
         let xml_headers = http::default_xml_headers();
         let content_length_header = ("Content-Length: " + result.len().to_str() + "\r\n\r\n").into_bytes();
         response.push_all_move(xml_headers);
         response.push_all_move(content_length_header);
         response.push_all_move(result);
-        println(::std::str::from_utf8(response));
+        debug!("{}", ::std::str::from_utf8(response));
         req.stream.write(response);
 
     }
@@ -69,15 +80,10 @@ impl ContentDirectory {
 
         }
     }
-}
-//TODO: Write prepared statements.
-fn get_content_as_xml(xml_action: ~Element) -> ~str {
+
+    //TODO: Write prepared statements.
+    fn get_content_as_xml(&self, xml_action: ~Element) -> ~str {
     let mut item_list : ~[~ResultItem] = ~[];
-    let path = "/home/ercan/rust/src/upnp/library.db";
-    let db = match sqlite::open(path) {
-        Ok(db)  => db,
-        Err(m)  => fail!(m)
-    };
 
     let action = BrowseActionIn::new(xml_action);
 
@@ -90,7 +96,7 @@ fn get_content_as_xml(xml_action: ~Element) -> ~str {
 
     let sql = "select * from library where parent_id = " + parent_id.to_str() ;
 
-    let cursor = match db.prepare(sql, &None) {
+    let cursor = match self.db.prepare(sql, &None) {
         Err(e) => fail!(),
         Ok(c)   => c
     };
@@ -125,6 +131,8 @@ fn get_content_as_xml(xml_action: ~Element) -> ~str {
     out
 }
 
+}
+
 #[deriving(Clone)]
 struct ResultItem{
     id: i64,
@@ -145,10 +153,6 @@ struct BrowseActionIn {
 
 fn content_xml(list: ~[~ResultItem]) -> ~str{
     let mut mid : ~[~str] = ~[];
-    //mid.push(~r#"<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/"
-    //xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/"
-    //xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"
-    //xmlns:dlna="urn:schemas-dlna-org:metadata-1-0/">"#);
 
     mid.push(~r#"&lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dlna="urn:schemas-dlna-org:metadata-1-0/"&gt;"#);
 
