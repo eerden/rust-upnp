@@ -1,22 +1,16 @@
 extern mod extra;
+use std::str;
 use std::io::net::tcp::TcpStream;
 use std::io::SeekSet;
 use std::io::buffered::BufferedReader;
 use std::io::{File,fs};
 use std::io::stdio::println;
 use super::content_directory_v4::ContentDirectory;
-use std::str;
-pub use std::io::net::tcp::TcpListener;
+use std::io::net::tcp::TcpListener;
 use std::io::Listener;
 use std::io::Acceptor;
 use std::hashmap::HashMap;
-use std::comm::SharedChan;
-use std::comm::Chan;
-use std::io::timer::Timer;
-use super::media_server_v4::MediaServer;
-use std::sync::arc::UnsafeArc;
 
-use extra::arc::MutexArc;
 
 pub fn listen (addr: &str) {
     let address = addr.to_owned();
@@ -75,55 +69,54 @@ fn get_byte_range(rstr: &str) -> i64{
 
 fn send_video(mut req: Request) {
     loop {
-        println("Video requested.");
-        //'/MediaItems/[id].avi'
-        if req.url.len() < 12 { return }
-        let mut url = req.url.slice_from(12);
-        let dot_pos = match url.find('.') {
-            Some(pos)   => pos,
-            None        => fail!("Can't find the '.' in file name")
-        };
+    println("Video requested.");
+    //'/MediaItems/[id].avi'
+    if req.url.len() < 12 { return }
+    let mut url = req.url.slice_from(12);
+    let dot_pos = match url.find('.') {
+        Some(pos)   => pos,
+        None        => fail!("Can't find the '.' in file name")
+    };
 
-        let id : int = match from_str(url.slice_to(dot_pos)) {
-            Some(num)   => num,
-            None        => fail!("Can't make an int from id string.")
-        };
+    let id : int = match from_str(url.slice_to(dot_pos)) {
+        Some(num)   => num,
+        None        => fail!("Can't make an int from id string.")
+    };
 
-        let vid_path = Path::new(ContentDirectory::get_item_url(id));
+    let vid_path = Path::new(ContentDirectory::get_item_url(id));
 
-        let mut start : i64 = 0;
-        match req.headers.find_copy(&~"Range") {
-            None => (),
-            Some(r) => {
-                start = get_byte_range(r);
-            },
+    let mut start : i64 = 0;
+    match req.headers.find_copy(&~"Range") {
+        None => (),
+        Some(r) => {
+            start = get_byte_range(r);
+        },
+    }
+
+    let mut response : ~[u8] = ~[];
+    let img_headers = default_img_headers();
+    let mut file = File::open(&vid_path);
+    file.seek(start, SeekSet);
+    let pos = file.tell();
+    println!("Start position: {} ", pos.to_str());
+    let file_length = ::std::io::fs::stat(&vid_path).size;
+    let content_length = file_length - pos;
+    //let buf = file.read_to_end();
+    let mut buf = BufferedReader::new(file);
+
+    let content_length_header = ("Content-Length: " + content_length.to_str() + "\r\n\r\n").into_bytes();
+
+    req.stream.write(img_headers);
+    req.stream.write(content_length_header);
+
+    loop {
+        match buf.read_byte() {
+            //Some(b) => {req.stream.write_u8(b);println("Got one byte...")},
+            Some(b) => req.stream.write_u8(b),
+            None    => break
         }
 
-        let mut response : ~[u8] = ~[];
-        let img_headers = default_img_headers();
-        //let path = Path::new("/home/ercan/StreamMedia/Series/South Park/Season 17/S17E01 - Let Go Let Gov.mp4");
-        let mut file = File::open(&vid_path);
-        file.seek(start, SeekSet);
-        let pos = file.tell();
-        println!("Start position: {} ", pos.to_str());
-        let file_length = ::std::io::fs::stat(&vid_path).size;
-        let content_length = file_length - pos;
-        //let buf = file.read_to_end();
-        let mut buf = BufferedReader::new(file);
-
-        let content_length_header = ("Content-Length: " + content_length.to_str() + "\r\n\r\n").into_bytes();
-
-        req.stream.write(img_headers);
-        req.stream.write(content_length_header);
-
-        loop {
-            match buf.read_byte() {
-                //Some(b) => {req.stream.write_u8(b);println("Got one byte...")},
-                Some(b) => req.stream.write_u8(b),
-                None    => break
-            }
-
-        }
+    }
 
     }
 }
