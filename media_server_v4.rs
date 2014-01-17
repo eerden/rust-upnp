@@ -19,8 +19,8 @@ pub struct MediaServer {
 
 impl MediaServer {
 
-    pub fn handle(&self, req:Request) {
-        debug!("handle function called...");
+    pub fn dispatch(&self, req:Request) {
+        debug!("dispatch function called...");
         debug!("==================START REQUEST==============");
         debug!("{}", req.to_str());
         debug!("==================END REQUEST==============");
@@ -70,17 +70,17 @@ impl MediaServer {
         println!("Server up.");
         loop {
             match self.from_http_port.recv_opt() {
-                Some(r) => self.handle(r),
+                Some(r) => self.dispatch(r),
                 None    => ()
             }
         }
     }
 
     //TODO: Fix this mess.
-pub fn get_messages(&self) -> ~[~str]{
+    pub fn get_messages(&self) -> ~[~str]{
     let mut out :~[~str] = ~[];
     out.push(
-~"NOTIFY * HTTP/1.1\r
+        ~"NOTIFY * HTTP/1.1\r
 HOST:239.255.255.250:1900\r
 CACHE-CONTROL:max-age=20\r
 LOCATION:http://192.168.1.3:8900/rootDesc.xml\r
@@ -90,7 +90,7 @@ USN:uuid:4d696e69-444c-164e-9d41-e0cb4ebb5911\r
 NTS:ssdp:alive\r\n");
 
     out.push(
-~"NOTIFY * HTTP/1.1\r
+        ~"NOTIFY * HTTP/1.1\r
 HOST:239.255.255.250:1900\r
 CACHE-CONTROL:max-age=20\r
 LOCATION:http://192.168.1.3:8200/rootDesc.xml\r
@@ -99,7 +99,7 @@ NT:urn:schemas-upnp-org:service:ContentDirectory:1\r
 USN:uuid:4d696e69-444c-164e-9d41-e0cb4ebb5911::urn:schemas-upnp-org:service:ContentDirectory:4\r
 NTS:ssdp:alive\r\n\r\n");
     out 
-}
+    }
 
 }
 
@@ -135,13 +135,12 @@ fn get_byte_range(rstr: &str) -> i64{
 fn send_xml_file(filename: &str, mut req: Request) {
     debug!("XML requested.");
     let mut response : ~[u8] = ~[];
-    let xml_headers = default_xml_headers();
     let path = Path::new("/home/ercan/rust/src/upnp/" + filename);
     let mut file = File::open(&path);
     let buf = file.read_to_end();
     let content_length_header = ("Content-Length: " + buf.len().to_str() + "\r\n\r\n").into_bytes();
     debug!("{}",::std::str::from_utf8(response));
-    req.stream.write(default_xml_headers());
+    req.stream.write(http::default_xml_headers());
     req.stream.write(content_length_header);
     req.stream.write(buf);
 }
@@ -149,12 +148,11 @@ fn send_xml_file(filename: &str, mut req: Request) {
 fn send_icon(filename: &str, mut req: Request) {
     debug!("Icon requested.");
     let mut response : ~[u8] = ~[];
-    let img_headers = default_img_headers();
     let path = Path::new("/home/ercan/rust/src/upnp/" + filename);
     let mut file = File::open(&path);
     let buf = file.read_to_end();
     let content_length_header = ("Content-Length: " + buf.len().to_str() + "\r\n\r\n").into_bytes();
-    req.stream.write(default_img_headers());
+    req.stream.write(http::default_img_headers());
     req.stream.write(content_length_header);
     req.stream.write(buf);
 }
@@ -185,7 +183,6 @@ fn send_video(mut req: Request) {
         },
     }
 
-    let img_headers = default_vid_headers();
     let mut file = File::open(&vid_path);
     file.seek(start, SeekSet);
     let pos = file.tell();
@@ -194,7 +191,7 @@ fn send_video(mut req: Request) {
     let content_length = file_length - pos;
     let mut buf = BufferedReader::new(file);
     let content_length_header = ("Content-Length: " + content_length.to_str() + "\r\n\r\n").into_bytes();
-    req.stream.write(img_headers);
+    req.stream.write(http::default_vid_headers());
     req.stream.write(content_length_header);
     loop {
         match buf.read_byte() {
@@ -204,26 +201,6 @@ fn send_video(mut req: Request) {
     }
 }
 
-//TODO: This is here just to make things work for the moment. Find a better way of doing this.
-pub fn default_xml_headers() -> ~[u8]{
-    let out :~str = ~"HTTP/1.1 200 OK\r\nConnection: Keep-Alive\r\nContent-Type: text/xml; charset=\"utf-8\"\r\n";
-    out.into_bytes()
-
-}
-
-//TODO: This is here just to make things work for the moment. Find a better way of doing this.
-pub fn default_img_headers() -> ~[u8]{
-    let out :~str = ~"HTTP/1.1 200 OK\r\nConnection: Keep-Alive\r\nContent-Type: image/png\r\n";
-    out.into_bytes()
-
-}
-
-//TODO: This is here just to make things work for the moment. Find a better way of doing this.
-pub fn default_vid_headers() -> ~[u8]{
-    let out :~str = ~"HTTP/1.1 200 OK\r\nConnection: Keep-Alive\r\nContent-Type: video/mp4\r\n";
-    out.into_bytes()
-
-}
 
 struct Config {
     name: ~str

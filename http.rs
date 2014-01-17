@@ -203,15 +203,22 @@ impl  Eq for Method {
 pub fn default_xml_headers() -> ~[u8]{
     let out :~str = ~"HTTP/1.1 200 OK\r\nConnection: Keep-Alive\r\nContent-Type: text/xml; charset=\"utf-8\"\r\n";
     out.into_bytes()
-
 }
 
 //TODO: This is here just to make things work for the moment. Find a better way of doing this.
 pub fn default_img_headers() -> ~[u8]{
     let out :~str = ~"HTTP/1.1 200 OK\r\nConnection: Keep-Alive\r\nContent-Type: image/png\r\n";
     out.into_bytes()
+}
+
+//TODO: This is here just to make things work for the moment. Find a better way of doing this.
+pub fn default_vid_headers() -> ~[u8]{
+    let out :~str = ~"HTTP/1.1 200 OK\r\nConnection: Keep-Alive\r\nContent-Type: video/mp4\r\n";
+    out.into_bytes()
 
 }
+
+
 //TODO: Make this an HTTP error message.
 fn send_empty() -> ~[u8]{
     ~[]
