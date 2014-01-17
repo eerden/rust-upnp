@@ -24,7 +24,7 @@ pub struct MediaServer {
 
 impl MediaServer {
     pub  fn new(desc_xml: &str, addr: &str) -> MediaServer {
-        let cd = ~ContentDirectory{service_reset_token: ~"12345"};
+        let cd = ~ContentDirectory{srt: ~"12345"};
         let (port, chan) : (Port<Request>,SharedChan<Request>) = SharedChan::new();
         MediaServer{cont_dir: cd, http_addr: addr.to_owned(), from_http_chan: ~chan, from_http_port: ~port}
     }

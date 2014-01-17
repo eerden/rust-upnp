@@ -10,7 +10,7 @@ use std::str;
 use std::io::fs;
 
 pub struct ContentDirectory{
-    service_reset_token: ~str //TODO:This should probably be in persistent storage. Check the specs;
+    srt: ~str
 }
 
 impl ContentDirectory {
