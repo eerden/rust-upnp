@@ -26,20 +26,13 @@ pub fn listen (addr: &str) {
             };
 
             do spawn {
-                gogo(stream);
+                let request = Request::new(stream);
+                handle(request);
             }
         }
     }
 }
 
-fn gogo(mut s: TcpStream) {
-    let request = Request::new(s);
-    handle(request);
-    //let response = handle(request);
-    //println!("---writing response, length: {} bytes", response.len());
-    //s.write(response);
-    //println("---done writing response");
-}
 
 //TODO: For every video MediaHouse tries things like videoname.{srt,txt...}.
 //Send a proper 404 msg.
