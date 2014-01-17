@@ -24,20 +24,20 @@ impl ContentDirectory {
 
     pub fn get_system_update_id() -> ~str {~""}
     pub fn get_service_reset_token() -> ~str {~""}
-    pub fn browse(req: Request) -> ~[u8]{
+    pub fn browse(mut req: Request){
         let mut response : ~[u8] = ~[];
-        let mut reqxml : Element = from_str(req.body.unwrap()).unwrap();
+        let mut reqxml : Element = from_str(req.body.clone().unwrap()).unwrap();
 
         let result = get_content_as_xml(~reqxml).into_bytes();
         //println(result);
 
         let xml_headers = http::default_xml_headers();
-    let content_length_header = ("Content-Length: " + result.len().to_str() + "\r\n\r\n").into_bytes();
+        let content_length_header = ("Content-Length: " + result.len().to_str() + "\r\n\r\n").into_bytes();
         response.push_all_move(xml_headers);
         response.push_all_move(content_length_header);
         response.push_all_move(result);
         println(::std::str::from_utf8(response));
-        response
+        req.stream.write(response);
 
     }
 

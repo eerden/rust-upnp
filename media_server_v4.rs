@@ -85,38 +85,38 @@ NTS:ssdp:alive\r\n");
     out 
 }
 
-fn handle(req:Request) -> ~[u8]{
-    println("handle function called...");
-    println(req.to_str());
-    let (method, url)  = (req.method.clone(), req.url.clone());
-    match (method, url) {
-        (GET, ~"/icon.png") => {
-            println("Icon requested.");
-            send_icon("icon.png",req)
-        },
-        (GET, ~"/rootDesc.xml") => {
-            println("Root doc requested.");
-            send_xml_file("rootDesc.xml",req)
-        },
-        (GET,~"/content_dir.xml") => {
-            println("Content directory service SCPD doc requested.");
-            send_xml_file("content_dir.xml",req)
-        },
-        //(GET,~"/connection_manager.xml") => println("Connection manager service SCPD doc requested."),
-        //(GET,~"/av_transport.xml") => println("AV Transport service SCPD doc requested."),
+//fn handle(req:Request) -> ~[u8]{
+    //println("handle function called...");
+    //println(req.to_str());
+    //let (method, url)  = (req.method.clone(), req.url.clone());
+    //match (method, url) {
+        //(GET, ~"/icon.png") => {
+            //println("Icon requested.");
+            //send_icon("icon.png",req)
+        //},
+        //(GET, ~"/rootDesc.xml") => {
+            //println("Root doc requested.");
+            //send_xml_file("rootDesc.xml",req)
+        //},
+        //(GET,~"/content_dir.xml") => {
+            //println("Content directory service SCPD doc requested.");
+            //send_xml_file("content_dir.xml",req)
+        //},
+        ////(GET,~"/connection_manager.xml") => println("Connection manager service SCPD doc requested."),
+        ////(GET,~"/av_transport.xml") => println("AV Transport service SCPD doc requested."),
 
-        (POST,~"/control/content_dir") => {
-            println("Content directory service control command.");
-            ContentDirectory::browse(req)
-        }
+        //(POST,~"/control/content_dir") => {
+            //println("Content directory service control command.");
+            //ContentDirectory::browse(req)
+        //}
 
-        (GET, url) => {
-            send_video(req)
+        //(GET, url) => {
+            //send_video(req)
 
-        }
+        //}
 
-    }
-}
+    //}
+//}
 
 fn get_byte_range(rstr: &str) -> i64{
     //bytes=[start]-[end]

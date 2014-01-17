@@ -38,16 +38,16 @@ pub fn listen (addr: &str) {
 }
 
 fn gogo(mut s: TcpStream) {
-    loop {
-        println("Loopy------------------------------------------------------------------------------------------");
-        let request = Request::new(&mut s);
-        let response = handle(request);
-        println!("---writing response, length: {} bytes", response.len());
-        s.write(response);
-        println("---done writing response");
-    }
+    let request = Request::new(s);
+    handle(request);
+    //let response = handle(request);
+    //println!("---writing response, length: {} bytes", response.len());
+    //s.write(response);
+    //println("---done writing response");
 }
 
+//TODO: For every video MediaHouse tries things like videoname.{srt,txt...}.
+//Send a proper 404 msg.
 fn get_byte_range(rstr: &str) -> i64{
     //bytes=[start]-[end]
     //bytes=[start]- for to the end
@@ -72,10 +72,10 @@ fn get_byte_range(rstr: &str) -> i64{
     out
 }
 
-fn send_video(req: Request) -> ~[u8] {
+fn send_video(mut req: Request) {
     println("Video requested.");
     //'/MediaItems/[id].avi'
-    if req.url.len() < 12 { return ~[]}
+    if req.url.len() < 12 { return }
     let mut url = req.url.slice_from(12);
     let dot_pos = match url.find('.') {
         Some(pos)   => pos,
@@ -108,10 +108,11 @@ fn send_video(req: Request) -> ~[u8] {
     response.push_all_move(img_headers);
     response.push_all_move(content_length_header);
     response.push_all_move(buf);
-    response
+    req.stream.write(response)
 
 }
-fn send_xml_file(filename: &str, req: Request) -> ~[u8]{
+
+fn send_xml_file(filename: &str, mut req: Request) {
     let mut response : ~[u8] = ~[];
     let xml_headers = default_xml_headers();
     let path = Path::new("/home/ercan/rust/src/upnp/" + filename);
@@ -122,7 +123,7 @@ fn send_xml_file(filename: &str, req: Request) -> ~[u8]{
     response.push_all_move(content_length_header);
     response.push_all_move(buf);
     println(::std::str::from_utf8(response));
-    response
+    req.stream.write(response);
 }
 
 fn send_icon(filename: &str, req: Request) -> ~[u8] {
@@ -139,7 +140,7 @@ fn send_icon(filename: &str, req: Request) -> ~[u8] {
 }
 
 
-fn handle(req:Request) -> ~[u8]{
+fn handle(req:Request) {
     println("handle function called...");
     println("==================START REQUEST==============");
     println(req.to_str());
@@ -148,24 +149,24 @@ fn handle(req:Request) -> ~[u8]{
     match (method, url) {
         (GET, ~"/icon.png") => {
             println("Icon requested.");
-            send_icon("icon.png",req)
+            send_icon("icon.png",req);
         },
         (GET, ~"/rootDesc.xml") => {
             println("Root doc requested.");
-            send_xml_file("rootDesc.xml",req)
+            send_xml_file("rootDesc.xml",req);
         },
         (GET,~"/content_dir.xml") => {
             println("Content directory service SCPD doc requested.");
-            send_xml_file("content_dir.xml",req)
+            send_xml_file("content_dir.xml",req);
         },
 
         (POST,~"/control/content_dir") => {
             println("Content directory service control command.");
-            ContentDirectory::browse(req)
+            ContentDirectory::browse(req);
         }
 
         (GET, _) => {
-            send_video(req)
+            send_video(req);
         }
 
         (POST, _) => {
@@ -181,12 +182,13 @@ pub struct Request {
     url:    ~str,
     http_info: ~str,
     headers: HashMap<~str,~str>,
-    body: Option<~str>
+    body: Option<~str>,
+    stream: TcpStream
 }
 
 impl Request {
-    fn new(mut stream: &mut TcpStream) -> Request {
-        let mut header_lines = Request::get_header_lines(stream);
+    fn new(mut stream: TcpStream) -> Request {
+        let mut header_lines = Request::get_header_lines(&mut stream);
         let method_line = header_lines.shift();
         let (method, url, http_info) = Request::method_url_and_http(method_line);
         let headers = Request::get_headers(header_lines);
@@ -194,11 +196,11 @@ impl Request {
             POST => {
                 let len_str = (headers.get(&~"Content-Length"));
                 let len : int = from_str(*len_str).unwrap();
-                Request::get_body(stream,len)
+                Request::get_body(&mut stream,len)
             }
             _    => None
         };
-        Request{method: method, url: url, http_info: http_info, headers:headers, body: body}
+        Request{method: method, url: url, http_info: http_info, headers:headers, body: body, stream: stream}
     }
 
 

@@ -4,6 +4,7 @@ use std::io::net::ip::SocketAddr;
 use std::io::timer::Timer;
 use std::comm::Port;
 use std::comm::Chan;
+use std::comm::{TryRecvResult,Data};
 
 pub fn advertise(messages: ~[~str]) -> Chan<bool> {
     let (kill_port, kill_chan) = Chan::<bool>::new();
@@ -13,7 +14,7 @@ pub fn advertise(messages: ~[~str]) -> Chan<bool> {
         let mut timer = Timer::new().unwrap();
         loop {
             match kill_port.try_recv() {
-                Some(val) => {
+                Data(val) => {
                     println("ssdp::advertise() : Received kill message, ending task.");
                     break;
                 }
@@ -44,7 +45,7 @@ pub fn listen() -> Chan<bool>{
         let mut timer = Timer::new().unwrap();
         loop {
             match kill_port.try_recv() {
-                Some(val) => {
+                Data(val) => {
                     println("ssdp::listen() : Received kill message, ending task.");
                     break;
                 }
