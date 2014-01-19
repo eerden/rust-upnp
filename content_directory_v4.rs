@@ -198,7 +198,6 @@ fn make_didl_item(item: ~ResultItem) -> ~str {
         let close_tag = "</item>";
         out = open_tag + title + res + class + close_tag;
     }
-
     out
 }
 
@@ -283,6 +282,7 @@ struct BrowseResult {
 fn scan(dir: ~Path, db: &Database, parent_id: i64) -> uint {
     let mut dirs : ~[~Path] = ~[];
     let ls =  fs::readdir(dir);
+    //db.exec("BEGIN TRANSACTION");
     //do the root dir
     for node in ls.iter(){
         let mut is_dir = 0i;
@@ -309,6 +309,7 @@ fn scan(dir: ~Path, db: &Database, parent_id: i64) -> uint {
         }
     }
 
+    //db.exec("COMMIT TRANSACTION");
     ls.len()
 }
 
@@ -334,7 +335,7 @@ pub fn update_db() {
         _   =>()
     }
 
-    let path : ~Path = box from_str("/home/ercan/StreamMedia/Documentaries").unwrap();
+    let path : ~Path = box from_str("/home/ercan/StreamMedia").unwrap();
     let quote_escaped_str = str::replace(path.display().to_str(),"'","\\'");
     let sql = "insert into library (parent_id,path) values (NULL, \"" +quote_escaped_str+ "\")";
     match db.exec(sql){
@@ -343,6 +344,8 @@ pub fn update_db() {
     }
     let  rowid = db.get_last_insert_rowid();
 
+    db.exec("BEGIN TRANSACTION");
     scan(path, db, rowid);
+    db.exec("COMMIT TRANSACTION");
 }
 
