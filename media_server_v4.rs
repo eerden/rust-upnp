@@ -1,5 +1,5 @@
 use super::content_directory_v4::ContentDirectory;
-use std::io::buffered::BufferedReader;
+use std::io::BufferedReader;
 use super::connection_manager_v3::ConnectionManager;
 use super::av_transport_v3::AvTransport;
 use std::io::{File};

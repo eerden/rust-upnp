@@ -3,7 +3,6 @@ use std::hashmap::HashMap;
 use std::io::Acceptor;
 use std::io::Listener;
 use std::io::SeekSet;
-use std::io::buffered::BufferedReader;
 use std::io::net::tcp::TcpListener;
 use std::io::net::tcp::TcpStream;
 use std::io::stdio::println;
