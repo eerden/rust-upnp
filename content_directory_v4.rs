@@ -158,7 +158,7 @@ fn content_xml(list: ~[~ResultItem]) -> ~str{
     let mut mid : ~[~str] = ~[];
     let mut template = template::new("/home/ercan/rust/src/upnp/xml_templates/browse.xml");
 
-    mid.push(~r#"&lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dlna="urn:schemas-dlna-org:metadata-1-0/"&gt;"#);
+    mid.push(~r#"<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dlna="urn:schemas-dlna-org:metadata-1-0/">"#);
 
     let number_returned = list.len().to_str();
     let xml_top = ~r#"<?xml version="1.0" encoding="UTF-8"?>
@@ -314,10 +314,10 @@ fn scan(dir: ~Path, db: &Database, parent_id: i64) -> uint {
 }
 
 fn escape_didl(mut s: ~str) -> ~str{
+    s = s.replace("&", "&amp;amp;");
     s = s.replace("<", "&lt;");
     s = s.replace(">", "&gt;");
-    //s = s.replace("&", "&amp;");
-    //s = s.replace("\"", "&quot;");
+    s = s.replace("\"", "&quot;");
     s
 }
 

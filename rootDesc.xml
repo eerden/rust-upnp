@@ -4,12 +4,12 @@
         <major>1</major><minor>0</minor>
     </specVersion>
     <device>
-        <deviceType>urn:schemas-upnp-org:device:MediaServer:4 </deviceType>
+        <deviceType>urn:schemas-upnp-org:device:MediaServer:4</deviceType>
         <friendlyName>ZAP</friendlyName>
         <manufacturer>ZAP</manufacturer>
         <manufacturerURL>ZAP</manufacturerURL>
         <modelDescription>ZAP</modelDescription>
-        <modelName>ZAP</modelName>
+        <modelName>Windows Media Connect Compatible (ZAP)</modelName>
         <modelNumber>1</modelNumber>
         <modelURL>ZAP</modelURL>
         <serialNumber>12345678</serialNumber>

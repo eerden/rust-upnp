@@ -45,6 +45,21 @@ impl MediaServer {
                 }
             },
 
+            (GET,~"/ConnectionMgr.xml") => {
+                do spawn    {
+                    println!("ConnectionMgr.xml requested: BOOM!");
+                    //send_xml_file("content_dir.xml",req);
+                }
+            },
+
+            (GET,~"/X_MS_MediaReceiverRegistrar.xml") => {
+                do spawn    {
+                    println!("X_MS_MediaReceiverRegistrar.xml  requested: BOOM!");
+                    //send_xml_file("content_dir.xml",req);
+                }
+            },
+
+
             (POST,~"/control/content_dir") => {
                 debug!("Content directory service control command.");
                 self.content.browse(req);
@@ -154,6 +169,21 @@ NT:urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1\r
 USN:uuid:4d696e69-444c-164e-9d41-e0cb4ebb5911::urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1\r
 NTS:ssdp:alive\r\n\r\n"
 );
+
+//out.push(~"NOTIFY * HTTP/1.1\r\nHOST:239.255.255.250:1900\r\nCACHE-CONTROL:max-age=20\r\nLOCATION:http://192.168.1.3:8900/rootDesc.xml\r\nSERVER: 3.12.1-3-ARCH DLNADOC/1.50 UPnP/1.0 MiniDLNA/1.1.1\r\nNT:uuid:4d696e69-444c-164e-9d41-e0cb4ebb5911\r\nUSN:uuid:4d696e69-444c-164e-9d41-e0cb4ebb5911\r\nNTS:ssdp:alive\r\n\r\n");
+
+//out.push(~"NOTIFY * HTTP/1.1\r\nHOST:239.255.255.250:1900\r\nCACHE-CONTROL:max-age=20\r\nLOCATION:http://192.168.1.3:8900/rootDesc.xml\r\nSERVER: 3.12.1-3-ARCH DLNADOC/1.50 UPnP/1.0 MiniDLNA/1.1.1\r\nNT:upnp:rootdevice\r\nUSN:uuid:4d696e69-444c-164e-9d41-e0cb4ebb5911::upnp:rootdevice\r\nNTS:ssdp:alive\r\n\r\n");
+
+//out.push(~"NOTIFY * HTTP/1.1\r\nHOST:239.255.255.250:1900\r\nCACHE-CONTROL:max-age=20\r\nLOCATION:http://192.168.1.3:8900/rootDesc.xml\r\nSERVER: 3.12.1-3-ARCH DLNADOC/1.50 UPnP/1.0 MiniDLNA/1.1.1\r\nNT:urn:schemas-upnp-org:device:MediaServer:1\r\nUSN:uuid:4d696e69-444c-164e-9d41-e0cb4ebb5911::urn:schemas-upnp-org:device:MediaServer:1\r\nNTS:ssdp:alive\r\n\r\n");
+
+//out.push(~"NOTIFY * HTTP/1.1\r\nHOST:239.255.255.250:1900\r\nCACHE-CONTROL:max-age=20\r\nLOCATION:http://192.168.1.3:8900/rootDesc.xml\r\nSERVER: 3.12.1-3-ARCH DLNADOC/1.50 UPnP/1.0 MiniDLNA/1.1.1\r\nNT:urn:schemas-upnp-org:service:ContentDirectory:1\r\nUSN:uuid:4d696e69-444c-164e-9d41-e0cb4ebb5911::urn:schemas-upnp-org:service:ContentDirectory:1\r\nNTS:ssdp:alive\r\n\r\n");
+
+//out.push(~"NOTIFY * HTTP/1.1\r\nHOST:239.255.255.250:1900\r\nCACHE-CONTROL:max-age=20\r\nLOCATION:http://192.168.1.3:8900/rootDesc.xml\r\nSERVER: 3.12.1-3-ARCH DLNADOC/1.50 UPnP/1.0 MiniDLNA/1.1.1\r\nNT:urn:schemas-upnp-org:service:ConnectionManager:1\r\nUSN:uuid:4d696e69-444c-164e-9d41-e0cb4ebb5911::urn:schemas-upnp-org:service:ConnectionManager:1\r\nNTS:ssdp:alive\r\n\r\n");
+
+//out.push(~"NOTIFY * HTTP/1.1\r\nHOST:239.255.255.250:1900\r\nCACHE-CONTROL:max-age=20\r\nLOCATION:http://192.168.1.3:8900/rootDesc.xml\r\nSERVER: 3.12.1-3-ARCH DLNADOC/1.50 UPnP/1.0 MiniDLNA/1.1.1\r\nNT:urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1\r\nUSN:uuid:4d696e69-444c-164e-9d41-e0cb4ebb5911::urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1\r\nNTS:ssdp:alive\r\n\r\n");
+
+
+
 
 out 
     }
