@@ -79,26 +79,83 @@ impl MediaServer {
     //TODO: Fix this mess.
     pub fn get_messages(&self) -> ~[~str]{
     let mut out :~[~str] = ~[];
-    out.push(
-        ~"NOTIFY * HTTP/1.1\r
+
+out.push(
+~"NOTIFY * HTTP/1.1\r
 HOST:239.255.255.250:1900\r
 CACHE-CONTROL:max-age=20\r
 LOCATION:http://192.168.1.3:8900/rootDesc.xml\r
 SERVER: 3.12.1-3-ARCH DLNADOC/1.50 UPnP/1.0 MiniDLNA/1.1.1\r
 NT:uuid:4d696e69-444c-164e-9d41-e0cb4ebb5911\r
 USN:uuid:4d696e69-444c-164e-9d41-e0cb4ebb5911\r
-NTS:ssdp:alive\r\n");
+NTS:ssdp:alive\r\n\r\n"
 
-    out.push(
-        ~"NOTIFY * HTTP/1.1\r
+);
+
+
+out.push(
+~"NOTIFY * HTTP/1.1\r
 HOST:239.255.255.250:1900\r
 CACHE-CONTROL:max-age=20\r
-LOCATION:http://192.168.1.3:8200/rootDesc.xml\r
+LOCATION:http://192.168.1.3:8900/rootDesc.xml\r
 SERVER: 3.12.1-3-ARCH DLNADOC/1.50 UPnP/1.0 MiniDLNA/1.1.1\r
-NT:urn:schemas-upnp-org:service:ContentDirectory:1\r
+NT:upnp:rootdevice\r
+USN:uuid:4d696e69-444c-164e-9d41-e0cb4ebb5911::upnp:rootdevice\r
+NTS:ssdp:alive\r\n\r\n"
+);
+
+out.push (
+~"NOTIFY * HTTP/1.1\r
+HOST:239.255.255.250:1900\r
+CACHE-CONTROL:max-age=20\r
+LOCATION:http://192.168.1.3:8900/rootDesc.xml\r
+SERVER: 3.12.1-3-ARCH DLNADOC/1.50 UPnP/1.0 MiniDLNA/1.1.1\r
+NT:urn:schemas-upnp-org:device:MediaServer:1\r
+USN:uuid:4d696e69-444c-164e-9d41-e0cb4ebb5911::urn:schemas-upnp-org:device:MediaServer:1\r
+NTS:ssdp:alive\r\n\r\n"
+
+);
+
+
+out.push (
+
+~"NOTIFY * HTTP/1.1\r
+HOST:239.255.255.250:1900\r
+CACHE-CONTROL:max-age=20\r
+LOCATION:http://192.168.1.3:8900/rootDesc.xml\r
+SERVER: 3.12.1-3-ARCH DLNADOC/1.50 UPnP/1.0 MiniDLNA/1.1.1\r
+NT:urn:schemas-upnp-org:service:ContentDirectory:4\r
 USN:uuid:4d696e69-444c-164e-9d41-e0cb4ebb5911::urn:schemas-upnp-org:service:ContentDirectory:4\r
-NTS:ssdp:alive\r\n\r\n");
-    out 
+NTS:ssdp:alive\r\n\r\n"
+
+);
+
+out.push (
+
+~"NOTIFY * HTTP/1.1\r
+HOST:239.255.255.250:1900\r
+CACHE-CONTROL:max-age=20\r
+LOCATION:http://192.168.1.3:8900/rootDesc.xml\r
+SERVER: 3.12.1-3-ARCH DLNADOC/1.50 UPnP/1.0 MiniDLNA/1.1.1\r
+NT:urn:schemas-upnp-org:service:ConnectionManager:1\r
+USN:uuid:4d696e69-444c-164e-9d41-e0cb4ebb5911::urn:schemas-upnp-org:service:ConnectionManager:1\r
+NTS:ssdp:alive\r\n\r\n"
+
+);
+
+
+out.push(
+~"NOTIFY * HTTP/1.1\r
+HOST:239.255.255.250:1900\r
+CACHE-CONTROL:max-age=20\r
+LOCATION:http://192.168.1.3:8900/rootDesc.xml\r
+SERVER: 3.12.1-3-ARCH DLNADOC/1.50 UPnP/1.0 MiniDLNA/1.1.1\r
+NT:urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1\r
+USN:uuid:4d696e69-444c-164e-9d41-e0cb4ebb5911::urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1\r
+NTS:ssdp:alive\r\n\r\n"
+);
+
+out 
     }
 
 }
@@ -168,6 +225,7 @@ fn send_video(mut req: Request) {
         None        => fail!("Can't find the '.' in file name")
     };
 
+    println!("URL : `{}`",url);
     let id : int = match from_str(url.slice_to(dot_pos)) {
         Some(num)   => num,
         None        => fail!("Can't make an int from id string.")

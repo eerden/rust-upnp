@@ -14,6 +14,10 @@ pub fn advertise(messages: ~[~str]) {
                 timer.sleep(10);
                 socket.sendto(m.as_bytes(), socket_addr);
             }
+            for m in messages.iter() {
+                timer.sleep(10);
+                socket.sendto(m.as_bytes(), socket_addr);
+            }
         }
     }
 }
