@@ -17,6 +17,61 @@ pub struct ContentDirectory{
 
 impl ContentDirectory {
 
+//TODO: Write prepared statements.
+pub fn update_db(&self) {
+    let drop_sql = "drop table if exists library; create table library(id integer primary key, parent_id integer, is_dir integer, child_count integer default 0, path string)";
+
+    match self.db.exec(drop_sql){
+        Err(m) => fail!("Can't recreate table."),
+        _   =>()
+    }
+
+    let path : ~Path = box from_str("/home/ercan/StreamMedia/Movies").unwrap();
+    let quote_escaped_str = str::replace(path.display().to_str(),"'","\\'");
+    let sql = "insert into library (parent_id,path) values (NULL, \"" +quote_escaped_str+ "\")";
+    match self.db.exec(sql){
+        Err(m) => fail!("Can't insert root dir into library. Error: " + m.to_str()),
+        _   =>()
+    }
+    let  rowid = self.db.get_last_insert_rowid();
+    self.db.exec("BEGIN TRANSACTION");
+    self.scan(path, rowid);
+    self.db.exec("COMMIT TRANSACTION");
+}
+
+fn scan(&self, dir: ~Path, parent_id: i64) -> uint {
+    let mut dirs : ~[~Path] = ~[];
+    let ls =  fs::readdir(dir);
+    //do the root dir
+    for node in ls.iter(){
+        let mut is_dir = 0i;
+        if node.is_dir() {
+            is_dir = 1;
+        }
+        let quote_escaped_str = str::replace(node.display().to_str(),"'","\\'");
+        let sql_str = "insert into library (is_dir, path, parent_id) values ("+ is_dir.to_str() +",\""+quote_escaped_str+"\", "+ parent_id.to_str() +")";
+        match self.db.exec(sql_str){
+            Err(m) => fail!("Can't insert item into library. Error: " + m.to_str()),
+            _   =>()
+        }
+        if node.is_dir() {
+            let  rowid = self.db.get_last_insert_rowid();
+            let child_count = self.scan(~node.clone(), rowid);
+            println!("Got childcount {}", child_count);
+            let sql_str_upd = "update library set child_count = " + child_count.to_str() + " where id =  " + rowid.to_str();
+            println!("SQL string is `{}`", sql_str_upd);
+            match self.db.exec(sql_str_upd){
+                Err(m) => fail!("Can't update child count. Error: " + m.to_str()),
+                _   =>()
+            }
+
+        }
+    }
+
+    //db.exec("COMMIT TRANSACTION");
+    ls.len()
+}
+
     pub fn new() -> ContentDirectory {
         let path = "/home/ercan/rust/src/upnp/library.db";
         let db = match sqlite::open(path) {
@@ -276,43 +331,6 @@ struct BrowseResult {
 }
 
 
-//TODO: Write prepared statements.
-//TODO: Make the function return the number of children and update the dir.
-//New column in db will be needed.(`childCount='xx'` in xml)
-fn scan(dir: ~Path, db: &Database, parent_id: i64) -> uint {
-    let mut dirs : ~[~Path] = ~[];
-    let ls =  fs::readdir(dir);
-    //db.exec("BEGIN TRANSACTION");
-    //do the root dir
-    for node in ls.iter(){
-        let mut is_dir = 0i;
-        if node.is_dir() {
-            is_dir = 1;
-        }
-        let quote_escaped_str = str::replace(node.display().to_str(),"'","\\'");
-        let sql_str = "insert into library (is_dir, path, parent_id) values ("+ is_dir.to_str() +",\""+quote_escaped_str+"\", "+ parent_id.to_str() +")";
-        match db.exec(sql_str){
-            Err(m) => fail!("Can't insert item into library. Error: " + m.to_str()),
-            _   =>()
-        }
-        if node.is_dir() {
-            let  rowid = db.get_last_insert_rowid();
-            let child_count = scan(~node.clone(), db, rowid);
-            println!("Got childcount {}", child_count);
-            let sql_str_upd = "update library set child_count = " + child_count.to_str() + " where id =  " + rowid.to_str();
-            println!("SQL string is `{}`", sql_str_upd);
-            match db.exec(sql_str_upd){
-                Err(m) => fail!("Can't update child count. Error: " + m.to_str()),
-                _   =>()
-            }
-
-        }
-    }
-
-    //db.exec("COMMIT TRANSACTION");
-    ls.len()
-}
-
 fn escape_didl(mut s: ~str) -> ~str{
     s = s.replace("&", "&amp;amp;");
     s = s.replace("<", "&lt;");
@@ -321,31 +339,4 @@ fn escape_didl(mut s: ~str) -> ~str{
     s
 }
 
-//TODO: Write prepared statements.
-pub fn update_db() {
-    let path = "/home/ercan/rust/src/upnp/library.db";
-    let db = &'static match sqlite::open(path) {
-        Ok(db)  => db,
-        Err(m)  => fail!(m)
-    };
-    let drop_sql = "drop table if exists library; create table library(id integer primary key, parent_id integer, is_dir integer, child_count integer default 0, path string)";
-
-    match db.exec(drop_sql){
-        Err(m) => fail!("Can't recreate table."),
-        _   =>()
-    }
-
-    let path : ~Path = box from_str("/home/ercan/StreamMedia").unwrap();
-    let quote_escaped_str = str::replace(path.display().to_str(),"'","\\'");
-    let sql = "insert into library (parent_id,path) values (NULL, \"" +quote_escaped_str+ "\")";
-    match db.exec(sql){
-        Err(m) => fail!("Can't insert root dir into library. Error: " + m.to_str()),
-        _   =>()
-    }
-    let  rowid = db.get_last_insert_rowid();
-
-    db.exec("BEGIN TRANSACTION");
-    scan(path, db, rowid);
-    db.exec("COMMIT TRANSACTION");
-}
 

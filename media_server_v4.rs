@@ -18,6 +18,9 @@ pub struct MediaServer {
 }
 
 impl MediaServer {
+    pub fn update(&self) {
+        self.content.update_db();
+    }
 
     pub fn dispatch(&self, req:Request) {
         debug!("dispatch function called...");
