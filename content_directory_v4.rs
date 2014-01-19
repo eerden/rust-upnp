@@ -116,13 +116,14 @@ impl ContentDirectory {
         let id = row_map.pop(&~"id").unwrap();
         let is_dir = row_map.pop(&~"is_dir").unwrap();
         let parent_id = row_map.pop(&~"parent_id").unwrap();
+        let child_count = row_map.pop(&~"child_count").unwrap();
 
-        match (id,path,is_dir,parent_id) {
-            (Integer(ref i), Text(ref p), Integer(0),Integer(p_id)) =>{
-                item_list.push(~ResultItem{id:*i as i64,is_dir: false,parent_id: p_id as i64, path: from_str(*p).unwrap()});
+        match (id,path,is_dir,child_count, parent_id) {
+            (Integer(ref i), Text(ref p), Integer(0),Integer(0), Integer(p_id)) =>{
+                item_list.push(~ResultItem{id:*i as i64,is_dir: false,parent_id: p_id as i64, child_count: 0i64,  path: from_str(*p).unwrap()});
             },
-            (Integer(ref i), Text(ref p), Integer(1),Integer(p_id)) =>{
-                item_list.push(~ResultItem{id:*i as i64,is_dir: true,parent_id: p_id as i64, path: from_str(*p).unwrap()});
+            (Integer(ref i), Text(ref p), Integer(1),Integer(child_count), Integer(p_id)) =>{
+                item_list.push(~ResultItem{id:*i as i64,is_dir: true,parent_id: p_id as i64, child_count: child_count as i64, path: from_str(*p).unwrap()});
             },
             _       => ()
         }
@@ -139,6 +140,7 @@ struct ResultItem{
     id: i64,
     is_dir: bool,
     parent_id: i64,
+    child_count: i64,
     path: Path
 }
 
@@ -182,7 +184,7 @@ fn content_xml(list: ~[~ResultItem]) -> ~str{
 fn make_didl_item(item: ~ResultItem) -> ~str {
     let mut out : ~str = ~"";
     if item.is_dir{
-        let open_tag = "<container id=\""+ item.id.to_str() +"\" parentID=\"" + item.parent_id.to_str() + "\" restricted=\"1\">";
+        let open_tag = "<container id=\""+ item.id.to_str() +"\" parentID=\"" + item.parent_id.to_str() + "\" childCount=\""+ item.child_count.to_str() +"\" restricted=\"1\">";
         let class = "<upnp:class>object.container.storageFolder</upnp:class>";
         let title = "<dc:title>" + item.path.filename_str().unwrap() + "</dc:title>";
         let storage_used = "<upnp:storageUsed>-1</upnp:storageUsed>";
@@ -278,7 +280,7 @@ struct BrowseResult {
 //TODO: Write prepared statements.
 //TODO: Make the function return the number of children and update the dir.
 //New column in db will be needed.(`childCount='xx'` in xml)
-fn scan(dir: ~Path, db: &Database, parent_id: i64) {
+fn scan(dir: ~Path, db: &Database, parent_id: i64) -> uint {
     let mut dirs : ~[~Path] = ~[];
     let ls =  fs::readdir(dir);
     //do the root dir
@@ -295,16 +297,26 @@ fn scan(dir: ~Path, db: &Database, parent_id: i64) {
         }
         if node.is_dir() {
             let  rowid = db.get_last_insert_rowid();
-            scan(~node.clone(), db, rowid);
+            let child_count = scan(~node.clone(), db, rowid);
+            println!("Got childcount {}", child_count);
+            let sql_str_upd = "update library set child_count = " + child_count.to_str() + " where id =  " + rowid.to_str();
+            println!("SQL string is `{}`", sql_str_upd);
+            match db.exec(sql_str_upd){
+                Err(m) => fail!("Can't update child count. Error: " + m.to_str()),
+                _   =>()
+            }
+
         }
     }
 
-
+    ls.len()
 }
 
 fn escape_didl(mut s: ~str) -> ~str{
     s = s.replace("<", "&lt;");
     s = s.replace(">", "&gt;");
+    //s = s.replace("&", "&amp;");
+    //s = s.replace("\"", "&quot;");
     s
 }
 
@@ -315,14 +327,14 @@ pub fn update_db() {
         Ok(db)  => db,
         Err(m)  => fail!(m)
     };
-    let drop_sql = "drop table if exists library; create table library(id integer primary key, parent_id integer, is_dir integer, path string)";
+    let drop_sql = "drop table if exists library; create table library(id integer primary key, parent_id integer, is_dir integer, child_count integer default 0, path string)";
 
     match db.exec(drop_sql){
         Err(m) => fail!("Can't recreate table."),
         _   =>()
     }
 
-    let path : ~Path = box from_str("/home/ercan/StreamMedia/Movies/").unwrap();
+    let path : ~Path = box from_str("/home/ercan/StreamMedia/Documentaries").unwrap();
     let quote_escaped_str = str::replace(path.display().to_str(),"'","\\'");
     let sql = "insert into library (parent_id,path) values (NULL, \"" +quote_escaped_str+ "\")";
     match db.exec(sql){
