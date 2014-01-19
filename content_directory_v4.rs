@@ -1,4 +1,5 @@
 use super::http;
+use super::template;
 use super::xml;
 use std::io::stdio::println;
 use super::http::Request;
@@ -153,6 +154,7 @@ struct BrowseActionIn {
 
 fn content_xml(list: ~[~ResultItem]) -> ~str{
     let mut mid : ~[~str] = ~[];
+    let mut template = template::new("/home/ercan/rust/src/upnp/xml_templates/browse.xml");
 
     mid.push(~r#"&lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dlna="urn:schemas-dlna-org:metadata-1-0/"&gt;"#);
 
@@ -169,7 +171,10 @@ fn content_xml(list: ~[~ResultItem]) -> ~str{
         mid.push(make_didl_item(item.clone()));
     }
 
-    xml_top + escape_didl(mid.concat()) + xml_bottom
+    template.set_var("result", escape_didl(mid.concat()));
+    template.set_var("number_returned", number_returned);
+    template.set_var("total_matches", number_returned);
+    template.render()
 }
 
 
@@ -190,7 +195,6 @@ fn make_didl_item(item: ~ResultItem) -> ~str {
         let class = "<upnp:class>object.item.videoItem</upnp:class>";
         let close_tag = "</item>";
         out = open_tag + title + res + class + close_tag;
-        //out = open_tag + title + close_tag;
     }
 
     out

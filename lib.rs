@@ -16,3 +16,4 @@ pub mod av_transport_v3;
 pub mod media_server_v4;
 pub mod ssdp;
 pub mod http;
+pub mod template;
