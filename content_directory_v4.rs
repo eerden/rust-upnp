@@ -12,7 +12,8 @@ use std::io::fs;
 use sqlite::database::Database;
 
 pub struct ContentDirectory{
-    db: Database
+    db: Database,
+    library_dir: ~str
 }
 
 impl ContentDirectory {
@@ -26,7 +27,7 @@ impl ContentDirectory {
             None        => fail!("Can't find the '.' in file name")
         };
 
-        println!("URL : `{}`",filepath);
+        debug!("URL : `{}`",filepath);
         let id : int = match from_str(filepath.slice_to(dot_pos)) {
             Some(num)   => num,
             None        => fail!("Can't make an int from id string.")
@@ -58,6 +59,8 @@ impl ContentDirectory {
 
 //TODO: Write prepared statements.
 pub fn update_db(&self) {
+    println!("Root dir is: {}", self.library_dir);
+    println!("Updating library...");
     let drop_sql = "drop table if exists library; create table library(id integer primary key, parent_id integer, is_dir integer, child_count integer default 0, path string)";
 
     match self.db.exec(drop_sql){
@@ -65,7 +68,7 @@ pub fn update_db(&self) {
         _   =>()
     }
 
-    let path : ~Path = box from_str("/home/ercan/StreamMedia").unwrap();
+    let path : ~Path = box from_str(self.library_dir).unwrap();
     let quote_escaped_str = str::replace(path.display().to_str(),"'","\\'");
     let sql = "insert into library (parent_id,path) values (NULL, \"" +quote_escaped_str+ "\")";
     match self.db.exec(sql){
@@ -76,12 +79,13 @@ pub fn update_db(&self) {
     self.db.exec("BEGIN TRANSACTION");
     self.scan(path, rowid);
     self.db.exec("COMMIT TRANSACTION");
+    let  rowid = self.db.get_last_insert_rowid();
+    println!("{} items added to the library.", rowid);
 }
 
 fn scan(&self, dir: ~Path, parent_id: i64) -> uint {
     let mut dirs : ~[~Path] = ~[];
     let ls =  fs::readdir(dir);
-    //do the root dir
     for node in ls.iter(){
         let mut is_dir = 0i;
         if node.is_dir() {
@@ -96,9 +100,9 @@ fn scan(&self, dir: ~Path, parent_id: i64) -> uint {
         if node.is_dir() {
             let  rowid = self.db.get_last_insert_rowid();
             let child_count = self.scan(~node.clone(), rowid);
-            println!("Got childcount {}", child_count);
+            debug!("Got childcount {}", child_count);
             let sql_str_upd = "update library set child_count = " + child_count.to_str() + " where id =  " + rowid.to_str();
-            println!("SQL string is `{}`", sql_str_upd);
+            debug!("SQL string is `{}`", sql_str_upd);
             match self.db.exec(sql_str_upd){
                 Err(m) => fail!("Can't update child count. Error: " + m.to_str()),
                 _   =>()
@@ -111,15 +115,17 @@ fn scan(&self, dir: ~Path, parent_id: i64) -> uint {
     ls.len()
 }
 
-    pub fn new() -> ContentDirectory {
+    pub fn new(lib_dir: ~str) -> ContentDirectory {
+        if lib_dir.len() == 0 {
+            fail!("No directory supplied");
+        }
         //let path = "/home/ercan/rust/src/upnp/library.db";
         let path = ":memory:";
         let db = match sqlite::open(path) {
             Ok(db)  => db,
             Err(m)  => fail!(m)
         };
-
-        ContentDirectory{db: db}
+        ContentDirectory{db: db, library_dir: lib_dir}
     }
 
     pub fn get_search_capabilities(){}

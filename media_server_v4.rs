@@ -74,8 +74,8 @@ impl MediaServer {
         }
     }
 
-    pub  fn new(desc_xml: &str, addr: &str) -> MediaServer {
-        let cd = ~ContentDirectory::new();
+    pub  fn new(desc_xml: &str, addr: &str, library_dir: &str) -> MediaServer {
+        let cd = ~ContentDirectory::new(library_dir.to_owned());
         let (port, chan) : (Port<Request>,SharedChan<Request>) = SharedChan::new();
         MediaServer{content: cd, http_addr: addr.to_owned(), from_http_chan: ~chan, from_http_port: ~port}
     }
