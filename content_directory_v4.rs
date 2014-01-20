@@ -65,7 +65,7 @@ pub fn update_db(&self) {
         _   =>()
     }
 
-    let path : ~Path = box from_str("/home/ercan/StreamMedia/Movies").unwrap();
+    let path : ~Path = box from_str("/home/ercan/StreamMedia").unwrap();
     let quote_escaped_str = str::replace(path.display().to_str(),"'","\\'");
     let sql = "insert into library (parent_id,path) values (NULL, \"" +quote_escaped_str+ "\")";
     match self.db.exec(sql){
@@ -112,7 +112,8 @@ fn scan(&self, dir: ~Path, parent_id: i64) -> uint {
 }
 
     pub fn new() -> ContentDirectory {
-        let path = "/home/ercan/rust/src/upnp/library.db";
+        //let path = "/home/ercan/rust/src/upnp/library.db";
+        let path = ":memory:";
         let db = match sqlite::open(path) {
             Ok(db)  => db,
             Err(m)  => fail!(m)
