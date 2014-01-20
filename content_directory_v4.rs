@@ -19,12 +19,15 @@ pub struct ContentDirectory{
 impl ContentDirectory {
 
     pub fn get_item_path(&self, url: ~str) -> Option<Path> {
+        let media_dir_name = "/MediaItems/";
 
-        if url.len() < 12 { return None}
-        let mut filepath = url.slice_from(12);
+        //TODO:Someone asked for the root directory. Bubble this up to a 404.
+        if url.len() < 12 { return None} 
+
+        let mut filepath = url.slice_from(media_dir_name.len());
         let dot_pos = match filepath.find('.') {
             Some(pos)   => pos,
-            None        => fail!("Can't find the '.' in file name")
+            None        => return None
         };
 
         debug!("URL : `{}`",filepath);
@@ -32,6 +35,8 @@ impl ContentDirectory {
             Some(num)   => num,
             None        => fail!("Can't make an int from id string.")
         };
+        let requested_extension = filepath.slice_from(dot_pos + 1);
+        println!("-----------------------------------------------------------------------Extension: {}", requested_extension);
 
         let sql = "select path from library where id = " + id.to_str() ;
         let cursor = match self.db.prepare(sql, &None) {
@@ -49,9 +54,18 @@ impl ContentDirectory {
             None    => fail!()
         };
 
-        let path = row_map.get(&~"path");
-        match *path {
-            Text(ref t) => Some(Path::new(t.clone())),
+        //See if there's a subtitle with the same filename but different extension(txt,srt,sub)
+        let path_str = row_map.get(&~"path");
+
+
+
+        match *path_str {
+            Text(ref t) => {
+                let mut path = Path::new(t.clone());
+                path.set_extension(requested_extension);
+                println!("Sending: {}", path.display().to_str());
+                Some(path)
+            },
             _       => fail!()
         }
     }
@@ -259,9 +273,13 @@ fn make_didl_item(item: ~ResultItem) -> ~str {
         let close_tag = "</container>";
         out = open_tag + title + class + storage_used + close_tag;
     } else {
+        let extension = match item.path.extension_str() {
+            Some(e) => e,
+            None    => "",
+        };
         let open_tag = "<item id=\""+ item.id.to_str() +"\" parentID=\"" + item.parent_id.to_str() + "\" restricted=\"1\">";
         let title = "<dc:title>" + item.path.filename_str().unwrap() + "</dc:title>";
-        let res =  r#"<res protocolInfo="http-get:*:video/x-msvideo:*">http://192.168.1.3:8900/MediaItems/"#+ item.id.to_str() +r#".avi</res>"#;
+        let res =  r#"<res protocolInfo="http-get:*:video/x-msvideo:*">http://192.168.1.3:8900/MediaItems/"#+ item.id.to_str() + "." + extension + "</res>";
         let class = "<upnp:class>object.item.videoItem</upnp:class>";
         let close_tag = "</item>";
         out = open_tag + title + res + class + close_tag;
