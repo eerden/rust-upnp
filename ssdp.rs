@@ -1,6 +1,5 @@
 use std::io::net::udp::UdpSocket;
 use std::io::stdio::println;
-use std::io::net::ip::SocketAddr;
 use std::io::timer::Timer;
 
 pub fn advertise(messages: ~[~str]) {
@@ -26,9 +25,8 @@ pub fn advertise(messages: ~[~str]) {
 pub fn listen() {
     do spawn{
         let socket_addr = from_str("239.255.255.250:1900").unwrap();
-        let mut socket = UdpSocket::bind(socket_addr).unwrap(); 
+        let socket = UdpSocket::bind(socket_addr).unwrap(); 
         let mut stream = socket.connect(socket_addr);
-        let mut timer = Timer::new().unwrap();
         loop {
             println("Trying to read from stream.");
             let buf = stream.read_byte();

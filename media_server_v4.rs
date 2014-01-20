@@ -1,12 +1,9 @@
 use super::content_directory_v4::ContentDirectory;
 use std::io::BufferedReader;
-use super::connection_manager_v3::ConnectionManager;
-use super::av_transport_v3::AvTransport;
-use std::io::{File};
+use std::io::File;
 use super::ssdp;
 use super::http::Request;
 use std::comm::SharedChan;
-use std::comm::Chan;
 use super::http;
 use std::io::SeekSet;
 
@@ -68,7 +65,7 @@ impl MediaServer {
                 self.content.browse(req);
             }
 
-            (GET, _) => {
+            (_, _) => {
                     self.send_video(req);
             }
         }
@@ -189,18 +186,21 @@ NTS:ssdp:alive\r\n\r\n"
 out 
     }
 
-fn send_video(&self, mut req: Request) {
+fn send_video(&self, mut request: Request) {
     debug!("Video requested.");
     //'/MediaItems/[id].avi'
-    let vid_path = match self.content.get_item_path(req.url.clone()) {
-        None    => return, //This is failure
+    let vid_path = match self.content.get_item_path(request.url.clone()) {
+        None    => {
+            request.stream.write(http::code_404()); 
+            return
+        }, //This is failure
         Some(p) => p
     };
 
 
     do spawn {
         let mut start : i64 = 0;
-        match req.headers.find_copy(&~"Range") {
+        match request.headers.find_copy(&~"Range") {
             None => (),
             Some(r) => {
                 start = get_byte_range(r);
@@ -214,13 +214,13 @@ fn send_video(&self, mut req: Request) {
         let content_length = file_length - pos;
         let buf = BufferedReader::new(file);
         let content_length_header = ("Content-Length: " + content_length.to_str() + "\r\n\r\n").into_bytes();
-        let mut req = req;
+        let mut request = request;
         let mut buf = buf;
-        req.stream.write(http::default_vid_headers());
-        req.stream.write(content_length_header);
+        request.stream.write(http::default_vid_headers());
+        request.stream.write(content_length_header);
         loop {
             match buf.read_byte() {
-                Some(b) => req.stream.write_u8(b),
+                Some(b) => request.stream.write_u8(b),
                 None    => break
             }
         }
@@ -260,37 +260,24 @@ fn get_byte_range(rstr: &str) -> i64{
     out
 }
 
-fn send_xml_file(filename: &str, mut req: Request) {
+fn send_xml_file(filename: &str, mut request: Request) {
     debug!("XML requested.");
-    let mut response : ~[u8] = ~[];
     let path = Path::new("/home/ercan/rust/src/upnp/" + filename);
     let mut file = File::open(&path);
     let buf = file.read_to_end();
     let content_length_header = ("Content-Length: " + buf.len().to_str() + "\r\n\r\n").into_bytes();
-    debug!("{}",::std::str::from_utf8(response));
-    req.stream.write(http::default_xml_headers());
-    req.stream.write(content_length_header);
-    req.stream.write(buf);
+    request.stream.write(http::default_xml_headers());
+    request.stream.write(content_length_header);
+    request.stream.write(buf);
 }
 
-fn send_icon(filename: &str, mut req: Request) {
+fn send_icon(filename: &str, mut request: Request) {
     debug!("Icon requested.");
-    let mut response : ~[u8] = ~[];
     let path = Path::new("/home/ercan/rust/src/upnp/" + filename);
     let mut file = File::open(&path);
     let buf = file.read_to_end();
     let content_length_header = ("Content-Length: " + buf.len().to_str() + "\r\n\r\n").into_bytes();
-    req.stream.write(http::default_img_headers());
-    req.stream.write(content_length_header);
-    req.stream.write(buf);
+    request.stream.write(http::default_img_headers());
+    request.stream.write(content_length_header);
+    request.stream.write(buf);
 }
-
-
-
-
-struct Config {
-    name: ~str
-
-}
-
-

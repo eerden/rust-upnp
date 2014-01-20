@@ -2,9 +2,7 @@
 // TODO: Switch to something like rust-mustache.
 // TODO: Write a new constructor for tests.
 
-extern mod std;
 use std::hashmap;
-use std::str;
 use std::io::File;
 
 //Containers

@@ -2,19 +2,15 @@ use std::comm::SharedChan;
 use std::hashmap::HashMap;
 use std::io::Acceptor;
 use std::io::Listener;
-use std::io::SeekSet;
 use std::io::net::tcp::TcpListener;
 use std::io::net::tcp::TcpStream;
-use std::io::stdio::println;
-use std::io::{File,fs};
 use std::str;
-use super::content_directory_v4::ContentDirectory;
 
 pub fn listen (addr: &str, server_chan: ~SharedChan<Request>) {
     let address = addr.to_owned();
     do spawn {
         let socket_addr = from_str(address).unwrap();
-        let mut listener = TcpListener::bind(socket_addr);
+        let listener = TcpListener::bind(socket_addr);
         let mut acceptor = listener.listen().unwrap();
         loop {
             let stream = match acceptor.accept(){
@@ -72,7 +68,7 @@ impl Request {
 
     //Returns a ~str array contatining header lines.
     //This stops at the point where '\r\n\r\n' is reached.
-    fn get_header_lines(mut stream: &mut TcpStream) -> ~[~str] {
+    fn get_header_lines(stream: &mut TcpStream) -> ~[~str] {
         let mut got_rn = false;
         let mut line : ~[u8] = ~[];
         let mut out : ~[~str] = ~[];
@@ -182,40 +178,27 @@ impl FromStr for Method {
     }
 }
 
-impl  Eq for Method {
-    fn eq(&self, m: &Method) -> bool{
-        match (self, m) {
-            (&POST,&POST) => true,
-            (&GET,&GET) => true,
-            _       => false
-        }
-    }
-
-    fn ne(&self, m: &Method) -> bool{
-        true
-    }
-}
 
 //TODO: This is here just to make things work for the moment. Find a better way of doing this.
-pub fn default_xml_headers() -> ~[u8]{
+pub fn default_xml_headers() -> ~[u8] {
     let out :~str = ~"HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/xml; charset=\"utf-8\"\r\n";
     out.into_bytes()
 }
 
 //TODO: This is here just to make things work for the moment. Find a better way of doing this.
-pub fn default_img_headers() -> ~[u8]{
+pub fn default_img_headers() -> ~[u8] {
     let out :~str = ~"HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: image/png\r\n";
     out.into_bytes()
 }
 
 //TODO: This is here just to make things work for the moment. Find a better way of doing this.
-pub fn default_vid_headers() -> ~[u8]{
+pub fn default_vid_headers() -> ~[u8] {
     let out :~str = ~"HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: video/mp4\r\n";
     out.into_bytes()
 
 }
-
-//TODO: Make this an HTTP error message.
-fn send_empty() -> ~[u8]{
-    ~[]
+pub fn code_404() -> ~[u8] {
+    let out :~str = ~"HTTP/1.1 404 Not Found\r\n\r\n";
+    out.into_bytes()
 }
+
