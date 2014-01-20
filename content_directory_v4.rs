@@ -17,6 +17,45 @@ pub struct ContentDirectory{
 
 impl ContentDirectory {
 
+    pub fn get_item_path(&self, url: ~str) -> Option<Path> {
+
+        if url.len() < 12 { return None}
+        let mut filepath = url.slice_from(12);
+        let dot_pos = match filepath.find('.') {
+            Some(pos)   => pos,
+            None        => fail!("Can't find the '.' in file name")
+        };
+
+        println!("URL : `{}`",filepath);
+        let id : int = match from_str(filepath.slice_to(dot_pos)) {
+            Some(num)   => num,
+            None        => fail!("Can't make an int from id string.")
+        };
+
+        let sql = "select path from library where id = " + id.to_str() ;
+        let cursor = match self.db.prepare(sql, &None) {
+            Err(e) => fail!(),
+            Ok(c)   => c
+        };
+
+        let sql_result = match cursor.step_row() {
+            Ok(r) => r,
+            Err(e) => fail!() 
+        };
+
+        let mut row_map = match sql_result {
+            Some(m) => m,
+            None    => fail!()
+        };
+
+        let path = row_map.get(&~"path");
+        match *path {
+            Text(ref t) => Some(Path::new(t.clone())),
+            _       => fail!()
+        }
+    }
+
+
 //TODO: Write prepared statements.
 pub fn update_db(&self) {
     let drop_sql = "drop table if exists library; create table library(id integer primary key, parent_id integer, is_dir integer, child_count integer default 0, path string)";
@@ -103,39 +142,6 @@ fn scan(&self, dir: ~Path, parent_id: i64) -> uint {
 
     }
 
-    pub fn get_item_url(id: int) -> ~str{
-
-        let sql = "select path from library where id = " + id.to_str() ;
-
-        let path = "/home/ercan/rust/src/upnp/library.db";
-        let db = match sqlite::open(path) {
-            Ok(db)  => db,
-            Err(m)  => fail!(m)
-        };
-
-        let cursor = match db.prepare(sql, &None) {
-            Err(e) => fail!(),
-            Ok(c)   => c
-        };
-
-        let sql_result = match cursor.step_row() {
-            Ok(r) => r,
-            Err(e) => fail!() 
-        };
-
-        let mut row_map = match sql_result {
-            Some(m) => m,
-            None    => fail!()
-        };
-
-        let path = row_map.get(&~"path");
-
-        match *path {
-            Text(ref t) => t.clone(),
-            _       => fail!()
-
-        }
-    }
 
     //TODO: Write prepared statements.
     fn get_content_as_xml(&self, xml_action: ~Element) -> ~str {

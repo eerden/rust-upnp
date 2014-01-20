@@ -69,9 +69,7 @@ impl MediaServer {
             }
 
             (GET, _) => {
-                do spawn    {
-                    send_video(req);
-                }
+                    self.send_video(req);
             }
         }
     }
@@ -191,7 +189,47 @@ NTS:ssdp:alive\r\n\r\n"
 out 
     }
 
+fn send_video(&self, mut req: Request) {
+    debug!("Video requested.");
+    //'/MediaItems/[id].avi'
+    let vid_path = match self.content.get_item_path(req.url.clone()) {
+        None    => return, //This is failure
+        Some(p) => p
+    };
+
+
+    do spawn {
+        let mut start : i64 = 0;
+        match req.headers.find_copy(&~"Range") {
+            None => (),
+            Some(r) => {
+                start = get_byte_range(r);
+            },
+        }
+        let mut file = File::open(&vid_path);
+        file.seek(start, SeekSet);
+        let pos = file.tell();
+        debug!("Start position: {} ", pos.to_str());
+        let file_length = ::std::io::fs::stat(&vid_path).size;
+        let content_length = file_length - pos;
+        let buf = BufferedReader::new(file);
+        let content_length_header = ("Content-Length: " + content_length.to_str() + "\r\n\r\n").into_bytes();
+        let mut req = req;
+        let mut buf = buf;
+        req.stream.write(http::default_vid_headers());
+        req.stream.write(content_length_header);
+        loop {
+            match buf.read_byte() {
+                Some(b) => req.stream.write_u8(b),
+                None    => break
+            }
+        }
+    }
 }
+
+}
+
+
 
 
 //TODO: This is horrible. For every video MediaHouse tries things like videoname.{srt,txt...}.
@@ -248,49 +286,6 @@ fn send_icon(filename: &str, mut req: Request) {
 }
 
 
-fn send_video(mut req: Request) {
-    debug!("Video requested.");
-    //'/MediaItems/[id].avi'
-    if req.url.len() < 12 { return }
-    let mut url = req.url.slice_from(12);
-    let dot_pos = match url.find('.') {
-        Some(pos)   => pos,
-        None        => fail!("Can't find the '.' in file name")
-    };
-
-    println!("URL : `{}`",url);
-    let id : int = match from_str(url.slice_to(dot_pos)) {
-        Some(num)   => num,
-        None        => fail!("Can't make an int from id string.")
-    };
-
-    let vid_path = Path::new(ContentDirectory::get_item_url(id));
-
-    let mut start : i64 = 0;
-    match req.headers.find_copy(&~"Range") {
-        None => (),
-        Some(r) => {
-            start = get_byte_range(r);
-        },
-    }
-
-    let mut file = File::open(&vid_path);
-    file.seek(start, SeekSet);
-    let pos = file.tell();
-    debug!("Start position: {} ", pos.to_str());
-    let file_length = ::std::io::fs::stat(&vid_path).size;
-    let content_length = file_length - pos;
-    let mut buf = BufferedReader::new(file);
-    let content_length_header = ("Content-Length: " + content_length.to_str() + "\r\n\r\n").into_bytes();
-    req.stream.write(http::default_vid_headers());
-    req.stream.write(content_length_header);
-    loop {
-        match buf.read_byte() {
-            Some(b) => req.stream.write_u8(b),
-            None    => break
-        }
-    }
-}
 
 
 struct Config {

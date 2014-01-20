@@ -10,7 +10,6 @@ use std::io::{File,fs};
 use std::str;
 use super::content_directory_v4::ContentDirectory;
 
-
 pub fn listen (addr: &str, server_chan: ~SharedChan<Request>) {
     let address = addr.to_owned();
     do spawn {
@@ -57,7 +56,6 @@ impl Request {
         Request{method: method, url: url, http_info: http_info, headers:headers, body: body, stream: stream}
     }
 
-
     //Extracts the http method, url and http version information from the first line of an http request.
     fn method_url_and_http(line: ~str) -> (Method,~str,~str){
         //Request-Line   = Method SP Request-URI SP HTTP-Version CRLF
@@ -72,7 +70,7 @@ impl Request {
         (method,url,http_info)
     }
 
-    //Returns the header part of the requests as a ~str array.
+    //Returns a ~str array contatining header lines.
     //This stops at the point where '\r\n\r\n' is reached.
     fn get_header_lines(mut stream: &mut TcpStream) -> ~[~str] {
         let mut got_rn = false;
@@ -200,23 +198,22 @@ impl  Eq for Method {
 
 //TODO: This is here just to make things work for the moment. Find a better way of doing this.
 pub fn default_xml_headers() -> ~[u8]{
-    let out :~str = ~"HTTP/1.1 200 OK\r\nConnection: Keep-Alive\r\nContent-Type: text/xml; charset=\"utf-8\"\r\n";
+    let out :~str = ~"HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/xml; charset=\"utf-8\"\r\n";
     out.into_bytes()
 }
 
 //TODO: This is here just to make things work for the moment. Find a better way of doing this.
 pub fn default_img_headers() -> ~[u8]{
-    let out :~str = ~"HTTP/1.1 200 OK\r\nConnection: Keep-Alive\r\nContent-Type: image/png\r\n";
+    let out :~str = ~"HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: image/png\r\n";
     out.into_bytes()
 }
 
 //TODO: This is here just to make things work for the moment. Find a better way of doing this.
 pub fn default_vid_headers() -> ~[u8]{
-    let out :~str = ~"HTTP/1.1 200 OK\r\nConnection: Keep-Alive\r\nContent-Type: video/mp4\r\n";
+    let out :~str = ~"HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: video/mp4\r\n";
     out.into_bytes()
 
 }
-
 
 //TODO: Make this an HTTP error message.
 fn send_empty() -> ~[u8]{
