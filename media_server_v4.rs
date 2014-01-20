@@ -6,6 +6,7 @@ use super::http::Request;
 use std::comm::SharedChan;
 use super::http;
 use std::io::SeekSet;
+use http::{GET,POST};
 
 pub struct MediaServer {
     http_addr: ~str,
@@ -19,7 +20,7 @@ impl MediaServer {
         self.content.update_db();
     }
 
-    pub fn dispatch(&self, req:Request) {
+    pub fn dispatch(&self, mut req:Request) {
         debug!("dispatch function called...");
         debug!("==================START REQUEST==============");
         debug!("{}", req.to_str());
@@ -59,14 +60,16 @@ impl MediaServer {
                 }
             },
 
-
             (POST,~"/control/content_dir") => {
                 debug!("Content directory service control command.");
                 self.content.browse(req);
             }
+            (POST, _) => {
+                req.stream.write(http::code_404());
+            }
 
-            (_, _) => {
-                    self.send_video(req);
+            (GET, _) => {
+                self.send_video(req);
             }
         }
     }
@@ -91,10 +94,10 @@ impl MediaServer {
 
     //TODO: Fix this mess.
     pub fn get_messages(&self) -> ~[~str]{
-    let mut out :~[~str] = ~[];
+        let mut out :~[~str] = ~[];
 
-out.push(
-~"NOTIFY * HTTP/1.1\r
+        out.push(
+            ~"NOTIFY * HTTP/1.1\r
 HOST:239.255.255.250:1900\r
 CACHE-CONTROL:max-age=20\r
 LOCATION:http://192.168.1.3:8900/rootDesc.xml\r
@@ -106,8 +109,8 @@ NTS:ssdp:alive\r\n\r\n"
 );
 
 
-out.push(
-~"NOTIFY * HTTP/1.1\r
+        out.push(
+            ~"NOTIFY * HTTP/1.1\r
 HOST:239.255.255.250:1900\r
 CACHE-CONTROL:max-age=20\r
 LOCATION:http://192.168.1.3:8900/rootDesc.xml\r
@@ -117,8 +120,8 @@ USN:uuid:4d696e69-444c-164e-9d41-e0cb4ebb5911::upnp:rootdevice\r
 NTS:ssdp:alive\r\n\r\n"
 );
 
-out.push (
-~"NOTIFY * HTTP/1.1\r
+        out.push (
+            ~"NOTIFY * HTTP/1.1\r
 HOST:239.255.255.250:1900\r
 CACHE-CONTROL:max-age=20\r
 LOCATION:http://192.168.1.3:8900/rootDesc.xml\r
@@ -130,9 +133,9 @@ NTS:ssdp:alive\r\n\r\n"
 );
 
 
-out.push (
+        out.push (
 
-~"NOTIFY * HTTP/1.1\r
+            ~"NOTIFY * HTTP/1.1\r
 HOST:239.255.255.250:1900\r
 CACHE-CONTROL:max-age=20\r
 LOCATION:http://192.168.1.3:8900/rootDesc.xml\r
@@ -143,9 +146,9 @@ NTS:ssdp:alive\r\n\r\n"
 
 );
 
-out.push (
+        out.push (
 
-~"NOTIFY * HTTP/1.1\r
+            ~"NOTIFY * HTTP/1.1\r
 HOST:239.255.255.250:1900\r
 CACHE-CONTROL:max-age=20\r
 LOCATION:http://192.168.1.3:8900/rootDesc.xml\r
@@ -157,8 +160,8 @@ NTS:ssdp:alive\r\n\r\n"
 );
 
 
-out.push(
-~"NOTIFY * HTTP/1.1\r
+        out.push(
+            ~"NOTIFY * HTTP/1.1\r
 HOST:239.255.255.250:1900\r
 CACHE-CONTROL:max-age=20\r
 LOCATION:http://192.168.1.3:8900/rootDesc.xml\r
@@ -168,64 +171,49 @@ USN:uuid:4d696e69-444c-164e-9d41-e0cb4ebb5911::urn:microsoft.com:service:X_MS_Me
 NTS:ssdp:alive\r\n\r\n"
 );
 
-//out.push(~"NOTIFY * HTTP/1.1\r\nHOST:239.255.255.250:1900\r\nCACHE-CONTROL:max-age=20\r\nLOCATION:http://192.168.1.3:8900/rootDesc.xml\r\nSERVER: 3.12.1-3-ARCH DLNADOC/1.50 UPnP/1.0 MiniDLNA/1.1.1\r\nNT:uuid:4d696e69-444c-164e-9d41-e0cb4ebb5911\r\nUSN:uuid:4d696e69-444c-164e-9d41-e0cb4ebb5911\r\nNTS:ssdp:alive\r\n\r\n");
-
-//out.push(~"NOTIFY * HTTP/1.1\r\nHOST:239.255.255.250:1900\r\nCACHE-CONTROL:max-age=20\r\nLOCATION:http://192.168.1.3:8900/rootDesc.xml\r\nSERVER: 3.12.1-3-ARCH DLNADOC/1.50 UPnP/1.0 MiniDLNA/1.1.1\r\nNT:upnp:rootdevice\r\nUSN:uuid:4d696e69-444c-164e-9d41-e0cb4ebb5911::upnp:rootdevice\r\nNTS:ssdp:alive\r\n\r\n");
-
-//out.push(~"NOTIFY * HTTP/1.1\r\nHOST:239.255.255.250:1900\r\nCACHE-CONTROL:max-age=20\r\nLOCATION:http://192.168.1.3:8900/rootDesc.xml\r\nSERVER: 3.12.1-3-ARCH DLNADOC/1.50 UPnP/1.0 MiniDLNA/1.1.1\r\nNT:urn:schemas-upnp-org:device:MediaServer:1\r\nUSN:uuid:4d696e69-444c-164e-9d41-e0cb4ebb5911::urn:schemas-upnp-org:device:MediaServer:1\r\nNTS:ssdp:alive\r\n\r\n");
-
-//out.push(~"NOTIFY * HTTP/1.1\r\nHOST:239.255.255.250:1900\r\nCACHE-CONTROL:max-age=20\r\nLOCATION:http://192.168.1.3:8900/rootDesc.xml\r\nSERVER: 3.12.1-3-ARCH DLNADOC/1.50 UPnP/1.0 MiniDLNA/1.1.1\r\nNT:urn:schemas-upnp-org:service:ContentDirectory:1\r\nUSN:uuid:4d696e69-444c-164e-9d41-e0cb4ebb5911::urn:schemas-upnp-org:service:ContentDirectory:1\r\nNTS:ssdp:alive\r\n\r\n");
-
-//out.push(~"NOTIFY * HTTP/1.1\r\nHOST:239.255.255.250:1900\r\nCACHE-CONTROL:max-age=20\r\nLOCATION:http://192.168.1.3:8900/rootDesc.xml\r\nSERVER: 3.12.1-3-ARCH DLNADOC/1.50 UPnP/1.0 MiniDLNA/1.1.1\r\nNT:urn:schemas-upnp-org:service:ConnectionManager:1\r\nUSN:uuid:4d696e69-444c-164e-9d41-e0cb4ebb5911::urn:schemas-upnp-org:service:ConnectionManager:1\r\nNTS:ssdp:alive\r\n\r\n");
-
-//out.push(~"NOTIFY * HTTP/1.1\r\nHOST:239.255.255.250:1900\r\nCACHE-CONTROL:max-age=20\r\nLOCATION:http://192.168.1.3:8900/rootDesc.xml\r\nSERVER: 3.12.1-3-ARCH DLNADOC/1.50 UPnP/1.0 MiniDLNA/1.1.1\r\nNT:urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1\r\nUSN:uuid:4d696e69-444c-164e-9d41-e0cb4ebb5911::urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1\r\nNTS:ssdp:alive\r\n\r\n");
-
-
-
-
-out 
+        out 
     }
 
-fn send_video(&self, mut request: Request) {
-    debug!("Video requested.");
-    //'/MediaItems/[id].avi'
-    let vid_path = match self.content.get_item_path(request.url.clone()) {
-        None    => {
-            request.stream.write(http::code_404()); 
-            return
-        }, //This is failure
-        Some(p) => p
-    };
+    fn send_video(&self, mut request: Request) {
+        debug!("Video requested.");
+        //'/MediaItems/[id].avi'
+        let vid_path = match self.content.get_item_path(request.url.clone()) {
+            None    => {
+                request.stream.write(http::code_404()); 
+                return
+            }, //This is failure
+                    Some(p) => p
+        };
 
 
-    do spawn {
-        let mut start : i64 = 0;
-        match request.headers.find_copy(&~"Range") {
-            None => (),
-            Some(r) => {
-                start = get_byte_range(r);
-            },
-        }
-        let mut file = File::open(&vid_path);
-        file.seek(start, SeekSet);
-        let pos = file.tell();
-        debug!("Start position: {} ", pos.to_str());
-        let file_length = ::std::io::fs::stat(&vid_path).size;
-        let content_length = file_length - pos;
-        let buf = BufferedReader::new(file);
-        let content_length_header = ("Content-Length: " + content_length.to_str() + "\r\n\r\n").into_bytes();
-        let mut request = request;
-        let mut buf = buf;
-        request.stream.write(http::default_vid_headers());
-        request.stream.write(content_length_header);
-        loop {
-            match buf.read_byte() {
-                Some(b) => request.stream.write_u8(b),
-                None    => break
+        do spawn {
+            let mut start : i64 = 0;
+            match request.headers.find_copy(&~"Range") {
+                None => (),
+                Some(r) => {
+                    start = get_byte_range(r);
+                },
+            }
+            let mut file = File::open(&vid_path);
+            file.seek(start, SeekSet);
+            let pos = file.tell();
+            debug!("Start position: {} ", pos.to_str());
+            let file_length = ::std::io::fs::stat(&vid_path).size;
+            let content_length = file_length - pos;
+            let buf = BufferedReader::new(file);
+            let content_length_header = ("Content-Length: " + content_length.to_str() + "\r\n\r\n").into_bytes();
+            let mut request = request;
+            let mut buf = buf;
+            request.stream.write(http::default_vid_headers());
+            request.stream.write(content_length_header);
+            loop {
+                match buf.read_byte() {
+                    Some(b) => request.stream.write_u8(b),
+                    None    => break
+                }
             }
         }
     }
-}
 
 }
 
@@ -243,7 +231,7 @@ fn get_byte_range(rstr: &str) -> i64{
     let s = rstr.trim().slice_from(6);;
     let dash_pos = match s.find('-') {
         Some(pos)   => pos,
-        None        => fail!("Can't find the '-' in Range header")
+        None        => fail!("Can't find the '-' character in Range header")
 
     };
     if s.len() > dash_pos + 1 {

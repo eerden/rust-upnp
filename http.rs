@@ -153,7 +153,7 @@ impl ToStr for Request{
 }
 
 #[deriving(Clone)]
-enum Method {
+pub enum Method {
     GET,
     POST,
 }

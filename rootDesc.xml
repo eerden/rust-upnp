@@ -6,10 +6,10 @@
     <device>
         <deviceType>urn:schemas-upnp-org:device:MediaServer:4</deviceType>
         <friendlyName>ZAP</friendlyName>
-        <manufacturer>ZAP</manufacturer>
+        <manufacturer>Hobbits</manufacturer>
         <manufacturerURL>ZAP</manufacturerURL>
         <modelDescription>ZAP</modelDescription>
-        <modelName>Windows Media Connect Compatible (ZAP)</modelName>
+        <modelName>ZAP</modelName>
         <modelNumber>1</modelNumber>
         <modelURL>ZAP</modelURL>
         <serialNumber>12345678</serialNumber>
