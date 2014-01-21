@@ -73,8 +73,12 @@ impl ContentDirectory {
                 let mut path = Path::new(p.as_slice());
                 //Extension gets overriden here.
                 path.set_extension(requested_extension);
-                debug!("Sending: {}", path.display().to_str());
-                Some(path)
+                if path.exists() {
+                    debug!("Sending: {}", path.display().to_str());
+                    Some(path)
+                } else {
+                    None
+                }
             },
             _          => None
         }
@@ -139,7 +143,6 @@ impl ContentDirectory {
         if lib_dir.len() == 0 {
             fail!("No directory supplied");
         }
-        //let path = "/home/ercan/rust/src/upnp/library.db";
         let path = ":memory:";
         let db = match sqlite::open(path) {
             Ok(db)  => db,
