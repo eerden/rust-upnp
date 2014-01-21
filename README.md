@@ -6,25 +6,21 @@ Very early stages of development.
 
 Currently:
 
-It responds to Browse actions. The library folder can be viewed.
-It can send video, and music but the metadata is not correct so you'll need a forgiving client.
-It can send subtitles if they have the same name as the video file.
-It sends ssdp:alive messages and can be discovered.
+- It responds to Browse actions. The library folder can be viewed.
+- It can send video, and music but the metadata is not correct so you'll need a forgiving client.
+- It can send subtitles if they have the same name as the video file.
+- It sends ssdp:alive messages and can be discovered.
 
-It does not support searching, rewinding, fast forwarding or anything interesting.
-It does not respond to ssdp:discover messages. 
+- It does not support searching, rewinding, fast forwarding or anything interesting.
+- It does not respond to ssdp:discover messages. 
 
 
 Requirements: 
 
 - RustyXml for parsing incoming SOAP requests. https://github.com/Florob/RustyXML
-
 - rustsqlite for storing/retrieving media information. https://github.com/linuxfood/rustsqlite
-
 - A fairly new version of rust. https://github.com/mozilla/rust
-
 - A **capable** upnp renderer. (MediaHouse on Android works. Next targets are going to be VLC, and Xbox360).
-
 
 Try it:
 
