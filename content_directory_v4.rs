@@ -240,7 +240,7 @@ struct BrowseActionIn {
 
 fn content_xml(list: ~[~ResultItem]) -> ~str{
     let mut mid : ~[~str] = ~[];
-    let mut template = template::new("/home/ercan/rust/src/upnp/xml_templates/browse.xml");
+    let mut template = template::new("./xml_templates/browse.xml");
 
     mid.push(~r#"<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dlna="urn:schemas-dlna-org:metadata-1-0/">"#);
 

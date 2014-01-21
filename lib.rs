@@ -2,13 +2,8 @@
 #[crate_type = "lib"];
 #[crate_id = "upnp#0.1"];
 
-
-
-extern mod extra;
 extern mod xml;
 extern mod sqlite;
-
-
 
 pub mod content_directory_v4;
 pub mod connection_manager_v3;

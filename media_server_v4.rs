@@ -74,7 +74,7 @@ impl MediaServer {
         }
     }
 
-    pub  fn new(desc_xml: &str, addr: &str, library_dir: &str) -> MediaServer {
+    pub  fn new( addr: &str, library_dir: &str) -> MediaServer {
         let cd = ~ContentDirectory::new(library_dir.to_owned());
         let (port, chan) : (Port<Request>,SharedChan<Request>) = SharedChan::new();
         MediaServer{content: cd, http_addr: addr.to_owned(), from_http_chan: ~chan, from_http_port: ~port}
@@ -250,7 +250,7 @@ fn get_byte_range(rstr: &str) -> i64{
 
 fn send_xml_file(filename: &str, mut request: Request) {
     debug!("XML requested.");
-    let path = Path::new("/home/ercan/rust/src/upnp/" + filename);
+    let path = Path::new("./" + filename);
     let mut file = File::open(&path);
     let buf = file.read_to_end();
     let content_length_header = ("Content-Length: " + buf.len().to_str() + "\r\n\r\n").into_bytes();
@@ -261,7 +261,7 @@ fn send_xml_file(filename: &str, mut request: Request) {
 
 fn send_icon(filename: &str, mut request: Request) {
     debug!("Icon requested.");
-    let path = Path::new("/home/ercan/rust/src/upnp/" + filename);
+    let path = Path::new("./" + filename);
     let mut file = File::open(&path);
     let buf = file.read_to_end();
     let content_length_header = ("Content-Length: " + buf.len().to_str() + "\r\n\r\n").into_bytes();
