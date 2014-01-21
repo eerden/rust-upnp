@@ -36,7 +36,7 @@ pub struct Request {
 }
 
 impl Request {
-    fn new(mut stream: TcpStream) -> Request {
+    pub fn new(mut stream: TcpStream) -> Request {
         let mut header_lines = Request::get_header_lines(&mut stream);
         let method_line = header_lines.shift();
         let (method, url, http_info) = Request::method_url_and_http(method_line);
@@ -58,7 +58,7 @@ impl Request {
         let parts : ~[&str] = line.split(' ').collect();
 
         let method : Method = match from_str(parts[0]) {
-            None => fail!("Can't parse method verb"),
+            None => fail!("Can't parse method verb: `{}`", line),
             Some(m) => m
         };
         let url = parts[1].to_owned();
@@ -156,6 +156,7 @@ impl ToStr for Request{
 pub enum Method {
     GET,
     POST,
+    HEAD,
 }
 
 impl ToStr for Method{
@@ -163,6 +164,7 @@ impl ToStr for Method{
         match *self {
             GET => ~"GET",
             POST => ~"POST",
+            HEAD => ~"HEAD",
 
         }
     }
@@ -173,6 +175,7 @@ impl FromStr for Method {
         match s {
             "GET"   => Some(GET),
             "POST"  => Some(POST),
+            "HEAD"  => Some(HEAD),
             _       => None
         }
     }
@@ -181,19 +184,19 @@ impl FromStr for Method {
 
 //TODO: This is here just to make things work for the moment. Find a better way of doing this.
 pub fn default_xml_headers() -> ~[u8] {
-    let out :~str = ~"HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/xml; charset=\"utf-8\"\r\n";
+    let out :~str = ~"HTTP/1.1 200 OK\r\nConnection: Keep-Alive\r\nContent-Type: text/xml; charset=\"utf-8\"\r\n";
     out.into_bytes()
 }
 
 //TODO: This is here just to make things work for the moment. Find a better way of doing this.
 pub fn default_img_headers() -> ~[u8] {
-    let out :~str = ~"HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: image/png\r\n";
+    let out :~str = ~"HTTP/1.1 200 OK\r\nConnection: Keep-Alive\r\nContent-Type: image/png\r\n";
     out.into_bytes()
 }
 
 //TODO: This is here just to make things work for the moment. Find a better way of doing this.
 pub fn default_vid_headers() -> ~[u8] {
-    let out :~str = ~"HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: video/mp4\r\n";
+    let out :~str = ~"HTTP/1.1 200 OK\r\nConnection: Keep-Alive\r\nContent-Type: video/mp4\r\n";
     out.into_bytes()
 
 }
