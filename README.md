@@ -24,7 +24,7 @@ Requirements:
 
 Try it:
 
-- Compile lib.rs `rustc lib.rs -L /path/to/reqired/libs`.
+- Compile lib.rs `rustc lib.rs -L /path/to/required/libs`.
 - Compile test_server.rs `rustc test_server.rs -L .`
 - Run it with `test_server --dir /path/to/media/directory`.
 
