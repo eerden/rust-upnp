@@ -1,3 +1,7 @@
+extern mod avformat;
+extern mod avcodec;
+extern mod avutil;
+
 use super::{http,sqlite,template};
 
 use sqlite::database::Database;
@@ -9,6 +13,16 @@ use std::path::GenericPath;
 use std::str;
 use super::http::Request;
 use xml::Element;
+use std::ptr;
+
+use std::os;
+use std::libc::c_void;
+use avformat::AVFormatContext;
+use avutil::AVDictionary;
+use avformat::AVInputFormat;
+use avformat::AVOutputFormat;
+
+
 
 pub struct ContentDirectory{
     db: Database,
@@ -26,6 +40,20 @@ impl ContentDirectory {
     //      path in db has.
     //3 - sends a Some(Path) to the requested file if found or None if not found. None should
     //      result in a 404.
+
+    pub fn new(lib_dir: ~str) -> ContentDirectory {
+        if lib_dir.len() == 0 {
+            fail!("No directory supplied");
+        }
+        let path = ":memory:";
+        let db = match sqlite::open(path) {
+            Ok(db)  => db,
+            Err(m)  => fail!(m)
+        };
+        ContentDirectory{db: db, library_dir: lib_dir}
+    }
+
+
     pub fn get_item_path(&self, url: ~str) -> Option<Path> {
 
         //This means Someone asked for the root directory. Bubble this up to a 404.
@@ -89,7 +117,19 @@ impl ContentDirectory {
     pub fn update_db(&self) {
         println!("Root dir is: {}", self.library_dir);
         println!("Updating library...");
-        let drop_sql = "drop table if exists library; create table library(id integer primary key, parent_id integer, is_dir integer, child_count integer default 0, path string)";
+
+
+        //Create table.
+        let drop_sql = "
+        drop table if exists library;
+        create table library (
+                                    id integer primary key, 
+                                    parent_id integer,
+                                    is_dir integer,
+                                    child_count integer default 0,
+                                    path string,
+                                    mime string
+                             )";
         match self.db.exec(drop_sql){
             Err(m) => fail!("Can't recreate table. Error: {}", m.to_str()),
             _   =>()
@@ -98,10 +138,15 @@ impl ContentDirectory {
         let path : ~Path = box from_str(self.library_dir).unwrap();
         let quote_escaped_str = str::replace(path.display().to_str(),"'","\\'");
         let sql = "insert into library (parent_id,path) values (NULL, \"" +quote_escaped_str+ "\")";
+
+
+        //Insert the root object.
         match self.db.exec(sql){
             Err(m) => fail!("Can't insert root dir into library. Error: " + m.to_str()),
             _   =>()
         }
+
+        //Insert all the child items recursively.
         let  rowid = self.db.get_last_insert_rowid();
         self.db.exec("BEGIN TRANSACTION");
         self.scan(path, rowid);
@@ -117,17 +162,36 @@ impl ContentDirectory {
             if node.is_dir() {
                 is_dir = 1;
             }
+
+            let mut mime = match  node.is_dir() { 
+                true    => ~"",
+                false   => get_mime(node)
+            };
+            if mime == ~"application/mp4" {
+                mime = ~"video/mp4"
+            }
+
+            println!("{}", mime);
+
             let quote_escaped_str = str::replace(node.display().to_str(),"'","\\'");
-            let sql_str = "insert into library (is_dir, path, parent_id) values ("+ is_dir.to_str() +",\""+quote_escaped_str+"\", "+ parent_id.to_str() +")";
+            let sql_str = "
+            INSERT INTO library 
+            (is_dir, path, parent_id, mime) 
+            VALUES 
+            ("+ is_dir.to_str() +",\""+quote_escaped_str+"\", "+ parent_id.to_str() + ",'" + mime  + "')";
+
+            //Insert indivial item.
             match self.db.exec(sql_str){
                 Err(m) => fail!("Can't insert item into library. Error: " + m.to_str()),
                 _   =>()
             }
+
+            //If the item is a directory we have to set the child_count column.
             if node.is_dir() {
                 let  rowid = self.db.get_last_insert_rowid();
                 let child_count = self.scan(~node.clone(), rowid);
                 debug!("Got childcount {}", child_count);
-                let sql_str_upd = "update library set child_count = " + child_count.to_str() + " where id =  " + rowid.to_str();
+                let sql_str_upd = "UPDATE library SET child_count = " + child_count.to_str() + " WHERE id =  " + rowid.to_str();
                 debug!("SQL string is `{}`", sql_str_upd);
                 match self.db.exec(sql_str_upd){
                     Err(m) => fail!("Can't update child count. Error: " + m.to_str()),
@@ -139,17 +203,6 @@ impl ContentDirectory {
         ls.len()
     }
 
-    pub fn new(lib_dir: ~str) -> ContentDirectory {
-        if lib_dir.len() == 0 {
-            fail!("No directory supplied");
-        }
-        let path = ":memory:";
-        let db = match sqlite::open(path) {
-            Ok(db)  => db,
-            Err(m)  => fail!(m)
-        };
-        ContentDirectory{db: db, library_dir: lib_dir}
-    }
 
     pub fn get_search_capabilities(){}
     pub fn get_sort_capabilities(){}
@@ -182,7 +235,7 @@ impl ContentDirectory {
             x => x
         };
 
-        let sql = "select * from library where parent_id = " + parent_id.to_str() ;
+        let sql = "SELECT * FROM library WHERE parent_id = " + parent_id.to_str() ;
 
         let cursor = match self.db.prepare(sql, &None) {
             Err(e) => fail!("Error: {}", e.to_str()),
@@ -204,13 +257,14 @@ impl ContentDirectory {
             let is_dir = row_map.pop(&~"is_dir").unwrap();
             let parent_id = row_map.pop(&~"parent_id").unwrap();
             let child_count = row_map.pop(&~"child_count").unwrap();
+            let mime = row_map.pop(&~"mime").unwrap();
 
-            match (id,path,is_dir,child_count, parent_id) {
-                (Integer(ref i), Text(ref p), Integer(0),Integer(0), Integer(p_id)) =>{
-                    item_list.push(~ResultItem{id:*i as i64,is_dir: false,parent_id: p_id as i64, child_count: 0i64,  path: from_str(*p).unwrap()});
+            match (id,path,is_dir,child_count, parent_id, mime) {
+                (Integer(ref i), Text(ref p), Integer(0),Integer(0), Integer(p_id), Text(ref m)) =>{
+                    item_list.push(~ResultItem{id:*i as i64,is_dir: false,parent_id: p_id as i64, child_count: 0i64,  path: from_str(*p).unwrap(), mime:Some(m.clone())});
                 },
-                (Integer(ref i), Text(ref p), Integer(1),Integer(child_count), Integer(p_id)) =>{
-                    item_list.push(~ResultItem{id:*i as i64,is_dir: true,parent_id: p_id as i64, child_count: child_count as i64, path: from_str(*p).unwrap()});
+                (Integer(ref i), Text(ref p), Integer(1),Integer(child_count), Integer(p_id), _) =>{
+                    item_list.push(~ResultItem{id:*i as i64,is_dir: true,parent_id: p_id as i64, child_count: child_count as i64, path: from_str(*p).unwrap(), mime: None});
                 },
                 _       => ()
             }
@@ -221,6 +275,29 @@ impl ContentDirectory {
     }
 
 }
+//This is potentially a minefield.
+//TODO: Extend this to give more than just the mime.
+fn get_mime(f: &Path) -> ~str {
+
+    let filename = f.display().to_str();
+
+    unsafe{
+        avformat::av_register_all();
+        let ps : *mut *mut AVFormatContext = &mut avformat::avformat_alloc_context();
+        let filename_c = filename.to_c_str().unwrap();
+        let av_if : *mut AVInputFormat = ptr::mut_null::<AVInputFormat>();
+        let av_of : *mut AVOutputFormat = ptr::mut_null::<AVOutputFormat>();
+        let dict = ptr::mut_null::<AVDictionary>() as *mut *mut c_void;
+        if avformat::avformat_open_input(ps,filename_c, av_if, dict) < 0 {println!("Are you sure this is a file ffmpeg understands?")}
+        if avformat::av_find_stream_info(*ps) < 0 {println!("Can't find stream info.")}
+        let outf = avformat::av_guess_format(ptr::null(),filename_c ,ptr::null());
+        let mime = str::raw::from_c_str((*outf).mime_type);
+        //println!("mime: {}", str::raw::from_c_str((*outf).mime_type));
+        let bitrate = ((**ps)).bit_rate;
+        //println!("Bitrate: {}", bitrate);
+        mime
+    }
+}
 
 #[deriving(Clone)]
 struct ResultItem{
@@ -228,7 +305,8 @@ struct ResultItem{
     is_dir: bool,
     parent_id: i64,
     child_count: i64,
-    path: Path
+    path: Path,
+    mime: Option<~str>
 }
 
 struct BrowseActionIn {
@@ -242,17 +320,17 @@ struct BrowseActionIn {
 }
 
 fn content_xml(list: ~[~ResultItem]) -> ~str{
-    let mut mid : ~[~str] = ~[];
+    let mut out : ~[~str] = ~[];
     let mut template = template::new("./xml_templates/browse.xml");
 
-    mid.push(~r#"<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dlna="urn:schemas-dlna-org:metadata-1-0/">"#);
+    out.push(~r#"<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dlna="urn:schemas-dlna-org:metadata-1-0/">"#);
 
     let number_returned = list.len().to_str();
     for item in list.iter() {
-        mid.push(make_didl_item(item.clone()));
+        out.push(make_didl_item(item.clone()));
     }
 
-    template.set_var("result", escape_didl(mid.concat()));
+    template.set_var("result", escape_didl(out.concat()));
     template.set_var("number_returned", number_returned);
     template.set_var("total_matches", number_returned);
     template.render()
@@ -276,7 +354,7 @@ fn make_didl_item(item: ~ResultItem) -> ~str {
         };
         let open_tag = "<item id=\""+ item.id.to_str() +"\" parentID=\"" + item.parent_id.to_str() + "\" restricted=\"1\">";
         let title = "<dc:title>" + item.path.filename_str().unwrap() + "</dc:title>";
-        let res =  r#"<res protocolInfo="http-get:*:video/x-msvideo:*">http://192.168.1.3:8900/MediaItems/"#+ item.id.to_str() + "." + extension + "</res>";
+        let res =  r#"<res protocolInfo="http-get:*:"# + item.mime.clone().unwrap() + r#":*">http://192.168.1.3:8900/MediaItems/"#+ item.id.to_str() + "." + extension + "</res>";
         let class = "<upnp:class>object.item.videoItem</upnp:class>";
         let close_tag = "</item>";
         out = open_tag + title + res + class + close_tag;

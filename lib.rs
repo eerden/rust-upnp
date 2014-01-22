@@ -4,6 +4,9 @@
 
 extern mod xml;
 extern mod sqlite;
+extern mod avcodec;
+extern mod avformat;
+extern mod avutil;
 
 pub mod content_directory_v4;
 pub mod connection_manager_v3;

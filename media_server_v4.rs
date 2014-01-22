@@ -6,7 +6,7 @@ use super::http::Request;
 use std::comm::SharedChan;
 use super::http;
 use std::io::SeekSet;
-use http::{GET,POST};
+use http::{GET,POST,HEAD};
 
 pub struct MediaServer {
     http_addr: ~str,
@@ -190,35 +190,30 @@ NTS:ssdp:alive\r\n\r\n"
 
 
         do spawn {
+            let mut start : i64 = 0;
+            match request.headers.find_copy(&~"Range") {
+                None => (),
+                Some(r) => {
+                    start = get_byte_range(r);
+                },
+            }
+            let mut file = File::open(&vid_path);
+            file.seek(start, SeekSet);
+            let pos = file.tell();
+            debug!("Start position: {} ", pos.to_str());
+            let file_length = ::std::io::fs::stat(&vid_path).size;
+            let content_length = file_length - pos;
+            let buf = BufferedReader::new(file);
+            let content_length_header = ("Content-Length: " + content_length.to_str() + "\r\n\r\n").into_bytes();
+            let mut request = request;
+            let mut buf = buf;
+            request.stream.write(http::default_vid_headers());
+            request.stream.write(content_length_header);
             loop {
-                let mut start : i64 = 0;
-                match request.headers.find_copy(&~"Range") {
-                    None => (),
-                    Some(r) => {
-                        start = get_byte_range(r);
-                    },
+                match buf.read_byte() {
+                    Some(b) => request.stream.write_u8(b),
+                    None    => break
                 }
-                let mut file = File::open(&vid_path);
-                file.seek(start, SeekSet);
-                let pos = file.tell();
-                debug!("Start position: {} ", pos.to_str());
-                let file_length = ::std::io::fs::stat(&vid_path).size;
-                let content_length = file_length - pos;
-                let buf = BufferedReader::new(file);
-                let content_length_header = ("Content-Length: " + content_length.to_str() + "\r\n\r\n").into_bytes();
-                let mut request = request;
-                let mut buf = buf;
-                request.stream.write(http::default_vid_headers());
-                request.stream.write(content_length_header);
-                loop {
-                    match buf.read_byte() {
-                        Some(b) => request.stream.write_u8(b),
-                        None    => break
-                    }
-                }
-                println!("-----------------------------------------------------------Loopy...");
-                request = http::Request::new(request.stream);
-                fail!();
             }
         }
     }
