@@ -113,7 +113,8 @@ pub fn get_mime(path: &Path) -> ~str{
             magic_close(magic_cookie);
         }
         let magic_full = magic_file(magic_cookie, file);
+        let out = from_c_str(magic_full);
         magic_close(magic_cookie);
-        from_c_str(magic_full)
+        out
     }
 }
