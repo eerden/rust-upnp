@@ -1,8 +1,6 @@
-extern mod avformat;
-extern mod avcodec;
-extern mod avutil;
 
-use super::{http,sqlite,template};
+use super::{http,sqlite,template,magic};
+use super::std;
 
 use sqlite::database::Database;
 use sqlite::types::{BindArg,Text,Integer};
@@ -17,12 +15,6 @@ use std::ptr;
 
 use std::os;
 use std::libc::c_void;
-use avformat::AVFormatContext;
-use avutil::AVDictionary;
-use avformat::AVInputFormat;
-use avformat::AVOutputFormat;
-
-
 
 pub struct ContentDirectory{
     db: Database,
@@ -165,7 +157,7 @@ impl ContentDirectory {
 
             let mut mime = match  node.is_dir() { 
                 true    => ~"",
-                false   => get_mime(node)
+                false   => magic::get_mime(node)
             };
             if mime == ~"application/mp4" {
                 mime = ~"video/mp4"
@@ -274,29 +266,6 @@ impl ContentDirectory {
         out
     }
 
-}
-//This is potentially a minefield.
-//TODO: Extend this to give more than just the mime.
-fn get_mime(f: &Path) -> ~str {
-
-    let filename = f.display().to_str();
-
-    unsafe{
-        avformat::av_register_all();
-        let ps : *mut *mut AVFormatContext = &mut avformat::avformat_alloc_context();
-        let filename_c = filename.to_c_str().unwrap();
-        let av_if : *mut AVInputFormat = ptr::mut_null::<AVInputFormat>();
-        let av_of : *mut AVOutputFormat = ptr::mut_null::<AVOutputFormat>();
-        let dict = ptr::mut_null::<AVDictionary>() as *mut *mut c_void;
-        if avformat::avformat_open_input(ps,filename_c, av_if, dict) < 0 {println!("Are you sure this is a file ffmpeg understands?")}
-        if avformat::av_find_stream_info(*ps) < 0 {println!("Can't find stream info.")}
-        let outf = avformat::av_guess_format(ptr::null(),filename_c ,ptr::null());
-        let mime = str::raw::from_c_str((*outf).mime_type);
-        //println!("mime: {}", str::raw::from_c_str((*outf).mime_type));
-        let bitrate = ((**ps)).bit_rate;
-        //println!("Bitrate: {}", bitrate);
-        mime
-    }
 }
 
 #[deriving(Clone)]
