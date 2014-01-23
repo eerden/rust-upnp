@@ -38,7 +38,10 @@ pub struct Request {
 impl Request {
     pub fn new(mut stream: TcpStream) -> Request {
         let mut header_lines = Request::get_header_lines(&mut stream);
-        let method_line = header_lines.shift();
+        let method_line = match header_lines.shift() {
+            None    => fail!("Can't get the method line of the request."),
+            Some(s) => s
+        };
         let (method, url, http_info) = Request::method_url_and_http(method_line);
         let headers = Request::get_headers(header_lines);
         let body = match method {
@@ -91,7 +94,11 @@ impl Request {
         }
 
         //
-        let str_blob = str::from_utf8(line);
+        let str_blob = match str::from_utf8(line) {
+            Some(s) => s,
+            None    => fail!("Can't build header lines."),
+        };
+
         for l in str_blob.split('\n') {
             if l.len() > 0 { //Discard 
                 out.push(l.to_owned());
@@ -116,7 +123,12 @@ impl Request {
                 break;
             }
         }
-        Some(str::from_utf8(out).to_owned())
+        let out_str = match str::from_utf8(out) {
+            Some(s) => s.to_owned(),
+            None    => fail!("Can't convert request body to string.")
+        };
+
+        Some(out_str)
     }
 
     fn get_headers(lines : ~[~str]) -> HashMap<~str,~str>{
