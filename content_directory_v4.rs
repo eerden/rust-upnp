@@ -225,7 +225,7 @@ impl ContentDirectory {
     //TODO: Write prepared statements.
     fn get_content_as_xml(&self, xml_action: ~Element) -> ~str {
         let mut item_list : ~[~ResultItem] = ~[];
-        let action = BrowseActionIn::new(xml_action);
+        let action = BrowseAction::new(xml_action);
 
         // 0 means root object is requested. 
         // It's  not a good idea to have 0 as rowid in sqlite.
@@ -241,86 +241,10 @@ impl ContentDirectory {
             Ok(c)   => c
         };
 
-        loop {
+        let mut result_iter = ResultItemIterator::new(cursor);
 
-            let res = match cursor.step_row() {
-                Ok(r) => r,
-                Err(e) => fail!("Error while iterating over cursor. Error: {}", e.to_str()) 
-            };
-
-            let mut row_map = match res {
-                Some(m) => m,
-                None    => break
-            };
-
-            let path = match row_map.pop(&~"path") {
-                Some(p) => p,
-                None => fail!("Can't find column `path` in row")
-            };
-
-            let id = match row_map.pop(&~"id") {
-                Some(i) => i,
-                None => fail!("Can't find column `id` in row ")
-            };
-
-            let is_dir = match row_map.pop(&~"is_dir") {
-                Some(d) => d, None => fail!("Can't find column `is_dir` in row ")
-            };
-
-            let parent_id = match row_map.pop(&~"parent_id") {
-                Some(pi) => pi, None => fail!("Can't find column `parent_id` in row ")
-            };
-
-            let child_count = match row_map.pop(&~"child_count") {
-                Some(cc) => cc, None => fail!("Can't find column `child_count` in row ")
-            };
-
-            let mime = match row_map.pop(&~"mime") {
-                Some(m) => m, None => fail!("Can't find column `mime` in row ")
-            };
-
-            //TODO: Check if the file actually exists. 
-            //Otherwise this will cause problems if the MediaServer::update() is not run everytime, 
-            //which is likely if a file is used for db insetad of memory.
-            match (id,path,is_dir,child_count, parent_id, mime) {
-
-                (Integer(ref i), Text(ref p), Integer(0),Integer(0), Integer(p_id), Text(ref m)) => {
-                    let path : Path = match from_str(*p) {
-                        Some(p) => p,
-                        None    => fail!("Can't make a Path using from_str() with the value of `path` column.") 
-                    };
-
-                    item_list.push(
-                        ~ResultItem {
-                            id:*i as i64,
-                            is_dir: false,
-                            parent_id: p_id as i64,
-                            child_count: 0i64,
-                            path: path,
-                            mime:Some(m.clone())
-                        });
-                },
-
-                (Integer(ref i), Text(ref p), Integer(1),Integer(child_count), Integer(p_id), _) => {
-                    let path : Path = match from_str(*p) {
-                        Some(p) => p,
-                        None    => fail!("Can't make a Path using from_str() with the value of `path` column.") 
-                    };
-
-
-
-                    item_list.push(
-                        ~ResultItem {
-                            id:*i as i64,
-                            is_dir: true,
-                            parent_id: p_id as i64,
-                            child_count: child_count as i64,
-                            path: path,
-                            mime: None
-                        });
-                },
-                _       => ()
-            }
+        for i in result_iter {
+            item_list.push(~i);
         }
 
         let out = content_xml(item_list);
@@ -339,7 +263,47 @@ struct ResultItem {
     mime: Option<~str>
 }
 
-struct BrowseActionIn {
+impl ResultItem {
+    fn to_didl(&self) -> ~str {
+
+        let mut out : ~str;
+        let filename_str = match self.path.filename_str() {
+            Some(s) => s,
+            None    => fail!("Can't produce a filename string from path.")
+        };
+
+        if self.is_dir {
+            let open_tag = "<container id=\""+ self.id.to_str() +"\" parentID=\"" + self.parent_id.to_str() + "\" childCount=\""+ self.child_count.to_str() +"\" restricted=\"1\">";
+            let class = "<upnp:class>object.container.storageFolder</upnp:class>";
+            let title = "<dc:title>" + filename_str + "</dc:title>";
+            let storage_used = "<upnp:storageUsed>-1</upnp:storageUsed>";
+            let close_tag = "</container>";
+            out = open_tag + title + class + storage_used + close_tag;
+        } else {
+
+            let extension = match self.path.extension_str() {
+                Some(e) => e,
+                None    => "",
+            };
+
+            let mime = match self.mime {
+                Some(ref m) => m.as_slice(),
+                None    => fail!("Can't retreive ResultItem::mime"),
+            };
+
+            let open_tag = "<item id=\""+ self.id.to_str() +"\" parentID=\"" + self.parent_id.to_str() + "\" restricted=\"1\">";
+            let title = "<dc:title>" + filename_str + "</dc:title>";
+            let res =  r#"<res protocolInfo="http-get:*:"# + mime + r#":*">http://192.168.1.3:8900/MediaItems/"#+ self.id.to_str() + "." + extension + "</res>";
+            let class = "<upnp:class>object.item.videoItem</upnp:class>";
+            let close_tag = "</item>";
+            out = open_tag + title + res + class + close_tag;
+        }
+        out
+    }
+}
+
+
+struct BrowseAction {
     name: ~str,
     object_id: ~i64,
     browse_flag: ~str,
@@ -357,7 +321,7 @@ fn content_xml(list: ~[~ResultItem]) -> ~str {
 
     let number_returned = list.len().to_str();
     for item in list.iter() {
-        out.push(make_didl_item(item.clone()));
+        out.push(item.to_didl());
     }
 
     template.set_var("result", escape_didl(out.concat()));
@@ -367,46 +331,8 @@ fn content_xml(list: ~[~ResultItem]) -> ~str {
 }
 
 
-//TODO: Find a way to use RustyXML more.
-fn make_didl_item(item: ~ResultItem) -> ~str {
-    let mut out : ~str;
-    let filename_str = match item.path.filename_str() {
-        Some(s) => s,
-        None    => fail!("Can't produce a filename string from path.")
-    };
-
-    if item.is_dir {
-        let open_tag = "<container id=\""+ item.id.to_str() +"\" parentID=\"" + item.parent_id.to_str() + "\" childCount=\""+ item.child_count.to_str() +"\" restricted=\"1\">";
-        let class = "<upnp:class>object.container.storageFolder</upnp:class>";
-        let title = "<dc:title>" + filename_str + "</dc:title>";
-        let storage_used = "<upnp:storageUsed>-1</upnp:storageUsed>";
-        let close_tag = "</container>";
-        out = open_tag + title + class + storage_used + close_tag;
-    } else {
-
-        let extension = match item.path.extension_str() {
-            Some(e) => e,
-            None    => "",
-        };
-
-        let mime = match item.mime {
-            Some(ref m) => m.as_slice(),
-            None    => fail!("Can't retreive ResultItem::mime"),
-        };
-
-        let open_tag = "<item id=\""+ item.id.to_str() +"\" parentID=\"" + item.parent_id.to_str() + "\" restricted=\"1\">";
-        let title = "<dc:title>" + filename_str + "</dc:title>";
-        let res =  r#"<res protocolInfo="http-get:*:"# + mime + r#":*">http://192.168.1.3:8900/MediaItems/"#+ item.id.to_str() + "." + extension + "</res>";
-        let class = "<upnp:class>object.item.videoItem</upnp:class>";
-        let close_tag = "</item>";
-        out = open_tag + title + res + class + close_tag;
-    }
-    out
-}
-
-impl BrowseActionIn {
-
-    fn new(soap: ~Element) -> BrowseActionIn {
+impl BrowseAction {
+    fn new(soap: ~Element) -> BrowseAction {
         let name: ~str = ~"Browse";
         let mut object_id: i64 = 0;
         let mut browse_flag: ~str = ~"";
@@ -452,7 +378,7 @@ impl BrowseActionIn {
             }
         }
 
-        BrowseActionIn {
+        BrowseAction {
             name: name,
             object_id: ~object_id,
             browse_flag: browse_flag,
@@ -464,7 +390,7 @@ impl BrowseActionIn {
     }
 }
 
-impl ToStr for BrowseActionIn {
+impl ToStr for BrowseAction {
     fn to_str(&self) -> ~str {
         ~"name: " + self.name + "\n"
             +"object_id: " + self.object_id.to_str() + "\n"
@@ -482,4 +408,94 @@ fn escape_didl(mut s: ~str) -> ~str {
     s = s.replace(">", "&gt;");
     s = s.replace("\"", "&quot;");
     s
+}
+
+struct ResultItemIterator {
+    cursor: sqlite::cursor::Cursor,
+}
+
+impl ResultItemIterator {
+    fn new(cursor: sqlite::cursor::Cursor) -> ResultItemIterator {
+        ResultItemIterator { cursor: cursor }
+    }
+}
+
+impl  Iterator <ResultItem>  for ResultItemIterator {
+    fn next(&mut self) -> Option<ResultItem> {
+
+        let res = match self.cursor.step_row() {
+            Ok(r) => r,
+            Err(e) => fail!("Error while iterating over cursor. Error: {}", e.to_str()) 
+        };
+
+        //Exit if there's no result.
+        let mut row_map = match res {
+            Some(m) => m,
+            None    => return None,
+        };
+
+        let path = match row_map.pop(&~"path") {
+            Some(p) => p,
+            None => fail!("Can't find column `path` in row")
+        };
+
+        let id = match row_map.pop(&~"id") {
+            Some(i) => i,
+            None => fail!("Can't find column `id` in row ")
+        };
+
+        let is_dir = match row_map.pop(&~"is_dir") {
+            Some(d) => d, None => fail!("Can't find column `is_dir` in row ")
+        };
+
+        let parent_id = match row_map.pop(&~"parent_id") {
+            Some(pi) => pi, None => fail!("Can't find column `parent_id` in row ")
+        };
+
+        let child_count = match row_map.pop(&~"child_count") {
+            Some(cc) => cc, None => fail!("Can't find column `child_count` in row ")
+        };
+
+        let mime = match row_map.pop(&~"mime") {
+            Some(m) => m, None => fail!("Can't find column `mime` in row ")
+        };
+
+        //TODO: Check if the file actually exists. 
+        //Otherwise this will cause problems if the MediaServer::update() is not run everytime, 
+        //which is likely if a file is used for db insetad of memory.
+        match (id,path,is_dir,child_count, parent_id, mime) {
+
+            (Integer(ref id), Text(ref path_str), Integer(0),Integer(0), Integer(p_id), Text(ref m)) => {
+                let path : Path = match from_str(*path_str) {
+                    Some(p) => p,
+                    None    => fail!("Can't make a Path using from_str() with the value of `path` column.") 
+                };
+                    let out = ResultItem {
+                        id:*id as i64,
+                        is_dir: false,
+                        parent_id: p_id as i64,
+                        child_count: 0i64,
+                        path: path,
+                        mime:Some(m.clone())
+                    };
+                    Some(out)
+            },
+            (Integer(ref i), Text(ref p), Integer(1),Integer(child_count), Integer(p_id), _) => {
+                let path : Path = match from_str(*p) {
+                    Some(p) => p,
+                    None    => fail!("Can't make a Path using from_str() with the value of `path` column.") 
+                };
+                   let out =  ResultItem {
+                        id:*i as i64,
+                        is_dir: true,
+                        parent_id: p_id as i64,
+                        child_count: child_count as i64,
+                        path: path,
+                        mime: None
+                    };
+                   Some(out)
+            },
+            _       => fail!("Could not create a result item."),
+        }
+    }
 }
