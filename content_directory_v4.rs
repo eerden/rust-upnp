@@ -1,5 +1,4 @@
 use super::{http,sqlite,template,magic};
-
 use sqlite::database::Database;
 use sqlite::types::{BindArg,Text,Integer};
 use std::hashmap::HashMap;
@@ -213,12 +212,12 @@ impl ContentDirectory {
             None    => fail!("Can't create an xml::Element from_str() using request body.")
         };
 
-        let result = self.get_content_as_xml(~reqxml).into_bytes();
+        let result_bytes = self.get_content_as_xml(~reqxml).into_bytes();
         let xml_headers = http::default_xml_headers();
-        let content_length_header = ("Content-Length: " + result.len().to_str() + "\r\n\r\n").into_bytes();
+        let content_length_header = ("Content-Length: " + result_bytes.len().to_str() + "\r\n\r\n").into_bytes();
         response.push_all_move(xml_headers);
         response.push_all_move(content_length_header);
-        response.push_all_move(result);
+        response.push_all_move(result_bytes);
         debug!("{}", ::std::str::from_utf8(response));
         req.stream.write(response);
     }
@@ -235,7 +234,7 @@ impl ContentDirectory {
             x => x
         };
 
-        let sql = "SELECT * FROM library WHERE parent_id = " + parent_id.to_str() ;
+        let sql = "SELECT * FROM library WHERE parent_id = " + parent_id.to_str();
 
         let cursor = match self.db.prepare(sql, &None) {
             Err(e) => fail!("Error: {}", e.to_str()),
@@ -259,8 +258,7 @@ impl ContentDirectory {
                 None => fail!("Can't find column `path` in row")
             };
 
-            let id = match row_map.pop(&~"id") 
-            {
+            let id = match row_map.pop(&~"id") {
                 Some(i) => i,
                 None => fail!("Can't find column `id` in row ")
             };
@@ -332,7 +330,7 @@ impl ContentDirectory {
 }
 
 #[deriving(Clone)]
-struct ResultItem{
+struct ResultItem {
     id: i64,
     is_dir: bool,
     parent_id: i64,
@@ -351,7 +349,7 @@ struct BrowseActionIn {
     sort_criteria: ~str,
 }
 
-fn content_xml(list: ~[~ResultItem]) -> ~str{
+fn content_xml(list: ~[~ResultItem]) -> ~str {
     let mut out : ~[~str] = ~[];
     let mut template = template::new("./xml_templates/browse.xml");
 
@@ -377,7 +375,7 @@ fn make_didl_item(item: ~ResultItem) -> ~str {
         None    => fail!("Can't produce a filename string from path.")
     };
 
-    if item.is_dir{
+    if item.is_dir {
         let open_tag = "<container id=\""+ item.id.to_str() +"\" parentID=\"" + item.parent_id.to_str() + "\" childCount=\""+ item.child_count.to_str() +"\" restricted=\"1\">";
         let class = "<upnp:class>object.container.storageFolder</upnp:class>";
         let title = "<dc:title>" + filename_str + "</dc:title>";
@@ -421,40 +419,40 @@ impl BrowseActionIn {
             Some(e) => e,
             None    => fail!("Can't get the Body element from soap object.")
         };
-        
-        match body.children[0].clone() {
-            Element(e) => {
-                for ch in e.children.iter(){
-                    match *ch {
-                        Element(ref e)  => {
-                            match e.name {
-                                ~"ObjectID" => object_id = match from_str(e.content_str()) {
-                                    Some(id)    => id,
-                                    None        => fail!("Can't get the `ObjectID` from xml::Element object"),
-                                },
-                                ~"BrowseFlag"       => browse_flag = e.content_str(),
-                                ~"Filter"           => filter = e.content_str(),
-                                ~"StartingIndex"    => starting_index = match from_str(e.content_str()) {
-                                    Some(index) => index,
-                                    None        => fail!("Can't get the `StartingIndex` from xml::Element object"),
-                                },
-                                ~"RequestedCount"   => requested_count = match from_str(e.content_str()) {
-                                    Some(count) => count,
-                                    None        => fail!("Can't get the `StartingIndex` from xml::Element object"),
-                                },
-                                ~"SortCriteria"     => sort_criteria = e.content_str(),
-                                _                   => ()
-                            }
 
-                        }
-                        _               => (),
-                    }
-                }
-            }
+        let body_children = match body.children[0].clone() {
+            Element(e) => e ,
             _          => fail!("NO ELEMENT FOUND"),
         };
 
-        BrowseActionIn{
+        //This is ugly.
+        for ch in body_children.children.iter() {
+            match *ch {
+                Element(ref e)  => {
+                    match e.name {
+                        ~"ObjectID" => object_id = match from_str(e.content_str()) {
+                            Some(id)    => id,
+                            None        => fail!("Can't get the `ObjectID` from xml::Element object"),
+                        },
+                        ~"BrowseFlag"       => browse_flag = e.content_str(),
+                        ~"Filter"           => filter = e.content_str(),
+                        ~"StartingIndex"    => starting_index = match from_str(e.content_str()) {
+                            Some(index) => index,
+                            None        => fail!("Can't get the `StartingIndex` from xml::Element object"),
+                        },
+                        ~"RequestedCount"   => requested_count = match from_str(e.content_str()) {
+                            Some(count) => count,
+                            None        => fail!("Can't get the `StartingIndex` from xml::Element object"),
+                        },
+                        ~"SortCriteria"     => sort_criteria = e.content_str(),
+                        _                   => ()
+                    }
+                }
+                _               => (),
+            }
+        }
+
+        BrowseActionIn {
             name: name,
             object_id: ~object_id,
             browse_flag: browse_flag,
@@ -478,7 +476,7 @@ impl ToStr for BrowseActionIn {
     }
 }
 
-fn escape_didl(mut s: ~str) -> ~str{
+fn escape_didl(mut s: ~str) -> ~str {
     s = s.replace("&", "&amp;amp;");
     s = s.replace("<", "&lt;");
     s = s.replace(">", "&gt;");
