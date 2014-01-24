@@ -8,12 +8,15 @@ fn main(){
 
     if args.len() > 2 {
         match (args[1].as_slice(),args[2]) {
-            ("--dir", b) => {
-                if std::path::Path::new(b.as_slice()).is_dir() {
-                    library_dir = b;
+            ("--dir", b)    => {
+                let path = std::path::Path::new(b.as_slice());
+                match (path.exists(), path.is_dir()) {
+                    (false,_)       =>  println!("Path `{}` does not exist.", path.display()),
+                    (true,false)    =>  println!("Path `{}` is not a directory.", path.display()),
+                    (true,true)     =>  library_dir = b,
                 }
             },
-                _       => ()
+            _               => (),
         }
     } else {
         println!("\nYou have to supply a media directory using '--dir DIRNAME'\n");
