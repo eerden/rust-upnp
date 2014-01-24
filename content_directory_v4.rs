@@ -1,6 +1,4 @@
-
 use super::{http,sqlite,template,magic};
-use super::std;
 
 use sqlite::database::Database;
 use sqlite::types::{BindArg,Text,Integer};
@@ -127,7 +125,11 @@ impl ContentDirectory {
             _   =>()
         }
 
-        let path : ~Path = box from_str(self.library_dir).unwrap();
+        let path : Path = match from_str(self.library_dir) {
+            Some(p) => p,
+            None    => fail!("Can't make path using ContentDirectory::library_dir with from_str()"), 
+        };
+
         let quote_escaped_str = str::replace(path.display().to_str(),"'","\\'");
         let sql = "insert into library (parent_id,path) values (NULL, \"" +quote_escaped_str+ "\")";
 
@@ -141,13 +143,13 @@ impl ContentDirectory {
         //Insert all the child items recursively.
         let  rowid = self.db.get_last_insert_rowid();
         self.db.exec("BEGIN TRANSACTION");
-        self.scan(path, rowid);
+        self.scan(&path, rowid);
         self.db.exec("COMMIT TRANSACTION");
         let  rowid = self.db.get_last_insert_rowid();
         println!("{} items added to the library.", rowid);
     }
 
-    fn scan(&self, dir: ~Path, parent_id: i64) -> uint {
+    fn scan(&self, dir: &Path, parent_id: i64) -> uint {
         let ls =  fs::readdir(dir);
         for node in ls.iter(){
             let mut is_dir = 0i;
@@ -163,7 +165,7 @@ impl ContentDirectory {
                 mime = ~"video/mp4"
             }
 
-            println!("{}", mime);
+            debug!("{}", mime);
 
             let quote_escaped_str = str::replace(node.display().to_str(),"'","\\'");
             let sql_str = "
@@ -204,7 +206,17 @@ impl ContentDirectory {
 
     pub fn browse(&self, mut req: Request){
         let mut response : ~[u8] = ~[];
-        let reqxml : Element = from_str(req.body.clone().unwrap()).unwrap();
+
+        let body = match req.body.clone() {
+            Some(b) => b,
+            None    => fail!("No body found in request")
+        };
+
+        let reqxml : Element = match from_str(body) {
+            Some(e) => e,
+            None    => fail!("Can't create an xml::Element from_str() using request body.")
+        };
+
         let result = self.get_content_as_xml(~reqxml).into_bytes();
         let xml_headers = http::default_xml_headers();
         let content_length_header = ("Content-Length: " + result.len().to_str() + "\r\n\r\n").into_bytes();
@@ -235,28 +247,83 @@ impl ContentDirectory {
         };
 
         loop {
+
             let res = match cursor.step_row() {
                 Ok(r) => r,
                 Err(e) => fail!("Error while iterating over cursor. Error: {}", e.to_str()) 
             };
+
             let mut row_map = match res {
                 Some(m) => m,
                 None    => break
             };
 
-            let path = row_map.pop(&~"path").unwrap();
-            let id = row_map.pop(&~"id").unwrap();
-            let is_dir = row_map.pop(&~"is_dir").unwrap();
-            let parent_id = row_map.pop(&~"parent_id").unwrap();
-            let child_count = row_map.pop(&~"child_count").unwrap();
-            let mime = row_map.pop(&~"mime").unwrap();
+            let path = match row_map.pop(&~"path") {
+                Some(p) => p,
+                None => fail!("Can't find column `path` in row")
+            };
 
+            let id = match row_map.pop(&~"id") 
+            {
+                Some(i) => i,
+                None => fail!("Can't find column `id` in row ")
+            };
+
+            let is_dir = match row_map.pop(&~"is_dir") {
+                Some(d) => d, None => fail!("Can't find column `is_dir` in row ")
+            };
+
+            let parent_id = match row_map.pop(&~"parent_id") {
+                Some(pi) => pi, None => fail!("Can't find column `parent_id` in row ")
+            };
+
+            let child_count = match row_map.pop(&~"child_count") {
+                Some(cc) => cc, None => fail!("Can't find column `child_count` in row ")
+            };
+
+            let mime = match row_map.pop(&~"mime") {
+                Some(m) => m, None => fail!("Can't find column `mime` in row ")
+            };
+
+            //TODO: Check if the file actually exists. 
+            //Otherwise this will cause problems if the MediaServer::update() is not run everytime, 
+            //which is likely if a file is used for db insetad of memory.
             match (id,path,is_dir,child_count, parent_id, mime) {
-                (Integer(ref i), Text(ref p), Integer(0),Integer(0), Integer(p_id), Text(ref m)) =>{
-                    item_list.push(~ResultItem{id:*i as i64,is_dir: false,parent_id: p_id as i64, child_count: 0i64,  path: from_str(*p).unwrap(), mime:Some(m.clone())});
+
+                (Integer(ref i), Text(ref p), Integer(0),Integer(0), Integer(p_id), Text(ref m)) => {
+                    let path : Path = match from_str(*p) {
+                        Some(p) => p,
+                        None    => fail!("Can't make a Path using from_str() with the value of `path` column.") 
+                    };
+
+                    item_list.push(
+                        ~ResultItem {
+                            id:*i as i64,
+                            is_dir: false,
+                            parent_id: p_id as i64,
+                            child_count: 0i64,
+                            path: path,
+                            mime:Some(m.clone())
+                        });
                 },
-                (Integer(ref i), Text(ref p), Integer(1),Integer(child_count), Integer(p_id), _) =>{
-                    item_list.push(~ResultItem{id:*i as i64,is_dir: true,parent_id: p_id as i64, child_count: child_count as i64, path: from_str(*p).unwrap(), mime: None});
+
+                (Integer(ref i), Text(ref p), Integer(1),Integer(child_count), Integer(p_id), _) => {
+                    let path : Path = match from_str(*p) {
+                        Some(p) => p,
+                        None    => fail!("Can't make a Path using from_str() with the value of `path` column.") 
+                    };
+
+
+
+                    item_list.push(
+                        ~ResultItem {
+                            id:*i as i64,
+                            is_dir: true,
+                            parent_id: p_id as i64,
+                            child_count: child_count as i64,
+                            path: path,
+                            mime: None
+                        });
                 },
                 _       => ()
             }
@@ -309,21 +376,33 @@ fn content_xml(list: ~[~ResultItem]) -> ~str{
 //TODO: Find a way to use RustyXML more.
 fn make_didl_item(item: ~ResultItem) -> ~str {
     let mut out : ~str;
+    let filename_str = match item.path.filename_str() {
+        Some(s) => s,
+        None    => fail!("Can't produce a filename string from path.")
+    };
+
     if item.is_dir{
         let open_tag = "<container id=\""+ item.id.to_str() +"\" parentID=\"" + item.parent_id.to_str() + "\" childCount=\""+ item.child_count.to_str() +"\" restricted=\"1\">";
         let class = "<upnp:class>object.container.storageFolder</upnp:class>";
-        let title = "<dc:title>" + item.path.filename_str().unwrap() + "</dc:title>";
+        let title = "<dc:title>" + filename_str + "</dc:title>";
         let storage_used = "<upnp:storageUsed>-1</upnp:storageUsed>";
         let close_tag = "</container>";
         out = open_tag + title + class + storage_used + close_tag;
     } else {
+
         let extension = match item.path.extension_str() {
             Some(e) => e,
             None    => "",
         };
+
+        let mime = match item.mime {
+            Some(ref m) => m.as_slice(),
+            None    => fail!("Can't retreive ResultItem::mime"),
+        };
+
         let open_tag = "<item id=\""+ item.id.to_str() +"\" parentID=\"" + item.parent_id.to_str() + "\" restricted=\"1\">";
-        let title = "<dc:title>" + item.path.filename_str().unwrap() + "</dc:title>";
-        let res =  r#"<res protocolInfo="http-get:*:"# + item.mime.clone().unwrap() + r#":*">http://192.168.1.3:8900/MediaItems/"#+ item.id.to_str() + "." + extension + "</res>";
+        let title = "<dc:title>" + filename_str + "</dc:title>";
+        let res =  r#"<res protocolInfo="http-get:*:"# + mime + r#":*">http://192.168.1.3:8900/MediaItems/"#+ item.id.to_str() + "." + extension + "</res>";
         let class = "<upnp:class>object.item.videoItem</upnp:class>";
         let close_tag = "</item>";
         out = open_tag + title + res + class + close_tag;
@@ -342,25 +421,37 @@ impl BrowseActionIn {
         let mut requested_count: i64 = 0;
         let mut sort_criteria: ~str = ~"";
 
-        let body = soap.child_with_name_and_ns("Body", Some(~"http://schemas.xmlsoap.org/soap/envelope/" )).unwrap();
+        let body : &Element = match soap.child_with_name_and_ns("Body", Some(~"http://schemas.xmlsoap.org/soap/envelope/" )) {
+            Some(e) => e,
+            None    => fail!("Can't get the Body element from soap object.")
+        };
+        
         match body.children[0].clone() {
             Element(e) => {
                 for ch in e.children.iter(){
                     match *ch {
                         Element(ref e)  => {
                             match e.name {
-                                ~"ObjectID" => object_id = from_str(e.content_str()).unwrap(),
-                                ~"BrowseFlag" => browse_flag = e.content_str(),
-                                ~"Filter" => filter = e.content_str(),
-                                ~"StartingIndex" => starting_index = from_str(e.content_str()).unwrap(),
-                                ~"RequestedCount" => requested_count = from_str(e.content_str()).unwrap(),
-                                ~"SortCriteria" => sort_criteria = e.content_str(),
-                                _           => ()
-
+                                ~"ObjectID" => object_id = match from_str(e.content_str()) {
+                                    Some(id)    => id,
+                                    None        => fail!("Can't get the `ObjectID` from xml::Element object"),
+                                },
+                                ~"BrowseFlag"       => browse_flag = e.content_str(),
+                                ~"Filter"           => filter = e.content_str(),
+                                ~"StartingIndex"    => starting_index = match from_str(e.content_str()) {
+                                    Some(index) => index,
+                                    None        => fail!("Can't get the `StartingIndex` from xml::Element object"),
+                                },
+                                ~"RequestedCount"   => requested_count = match from_str(e.content_str()) {
+                                    Some(count) => count,
+                                    None        => fail!("Can't get the `StartingIndex` from xml::Element object"),
+                                },
+                                ~"SortCriteria"     => sort_criteria = e.content_str(),
+                                _                   => ()
                             }
 
                         }
-                        _           => (),
+                        _               => (),
                     }
                 }
             }
