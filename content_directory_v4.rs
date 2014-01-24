@@ -9,10 +9,6 @@ use std::path::GenericPath;
 use std::str;
 use super::http::Request;
 use xml::Element;
-use std::ptr;
-
-use std::os;
-use std::libc::c_void;
 
 pub struct ContentDirectory{
     db: Database,
@@ -183,7 +179,7 @@ impl ContentDirectory {
             //If the item is a directory we have to set the child_count column.
             if node.is_dir() {
                 let  rowid = self.db.get_last_insert_rowid();
-                let child_count = self.scan(~node.clone(), rowid);
+                let child_count = self.scan(node, rowid);
                 debug!("Got childcount {}", child_count);
                 let sql_str_upd = "UPDATE library SET child_count = " + child_count.to_str() + " WHERE id =  " + rowid.to_str();
                 debug!("SQL string is `{}`", sql_str_upd);

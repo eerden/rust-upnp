@@ -1,4 +1,6 @@
+#[allow(dead_code)];
 use std::libc::c_int;
+
 use std::io::stdio::println;
 use std::libc::c_char;
 use std::str::raw::from_c_str;
@@ -88,17 +90,17 @@ static MAGIC_MIME: c_int = (MAGIC_MIME_TYPE|MAGIC_MIME_ENCODING);
 //#endif
 
 
+//#endif /* _MAGIC_H */
 
 struct magic_set;
 type  magic_t = *magic_set;
-//#endif /* _MAGIC_H */
 #[link(name = "magic")]
 extern "C" {
     fn magic_version () -> c_int;
     fn magic_open(magic: c_int) -> magic_t;
     fn magic_close(m: magic_t);
     fn magic_file(m: magic_t, file: *i8) -> *c_char;
-    fn magic_load(mut m: magic_t, file: *c_char) -> c_int;
+    fn magic_load(m: magic_t, file: *c_char) -> c_int;
     fn magic_errno(m:magic_t) -> c_int;
 }
 
@@ -106,7 +108,7 @@ extern "C" {
 pub fn get_mime(path: &Path) -> ~str{
     unsafe {
         let file = path.display().to_str().to_c_str().unwrap();
-        let mut magic_cookie : magic_t = magic_open(MAGIC_MIME_TYPE);
+        let magic_cookie : magic_t = magic_open(MAGIC_MIME_TYPE);
         let load = magic_load(magic_cookie, ptr::null());
         if load != 0 {
             println("Error");
