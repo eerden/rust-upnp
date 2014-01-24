@@ -97,12 +97,10 @@ impl ContentDirectory {
         }
     }
 
-
     //TODO: Write prepared statements.
     pub fn update_db(&self) {
         println!("Root dir is: {}", self.library_dir);
         println!("Updating library...");
-
 
         //Create table.
         let drop_sql = "
@@ -115,6 +113,7 @@ impl ContentDirectory {
                                     path string,
                                     mime string
                              )";
+
         match self.db.exec(drop_sql){
             Err(m) => fail!("Can't recreate table. Error: {}", m.to_str()),
             _   =>()
@@ -191,7 +190,6 @@ impl ContentDirectory {
 
         ls.len()
     }
-
 
     pub fn get_search_capabilities(){}
     pub fn get_sort_capabilities(){}
@@ -273,12 +271,15 @@ impl ResultItem {
         };
 
         if self.is_dir {
-            let open_tag = "<container id=\""+ self.id.to_str() +"\" parentID=\"" + self.parent_id.to_str() + "\" childCount=\""+ self.child_count.to_str() +"\" restricted=\"1\">";
+            let open_tag = "<container id=\""+ self.id.to_str() +"\" parentID=\"" + self.parent_id.to_str()
+                + "\" childCount=\""+ self.child_count.to_str() +"\" restricted=\"1\">";
+
             let class = "<upnp:class>object.container.storageFolder</upnp:class>";
             let title = "<dc:title>" + filename_str + "</dc:title>";
             let storage_used = "<upnp:storageUsed>-1</upnp:storageUsed>";
             let close_tag = "</container>";
             out = open_tag + title + class + storage_used + close_tag;
+
         } else {
 
             let extension = match self.path.extension_str() {
@@ -329,7 +330,6 @@ fn content_xml(list: ~[~ResultItem]) -> ~str {
     template.set_var("total_matches", number_returned);
     template.render()
 }
-
 
 impl BrowseAction {
     fn new(soap: ~Element) -> BrowseAction {
