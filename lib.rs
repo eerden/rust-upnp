@@ -3,7 +3,7 @@
 #[crate_id = "upnp#0.1"];
 
 extern mod xml;
-extern mod sqlite;
+extern mod sqlite3;
 
 pub mod content_directory_v4;
 pub mod connection_manager_v3;

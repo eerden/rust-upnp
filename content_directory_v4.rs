@@ -1,6 +1,7 @@
-use super::{http,sqlite,template,magic};
-use sqlite::database::Database;
-use sqlite::types::{BindArg,Text,Integer};
+use super::{http,sqlite3,template,magic};
+use sqlite3::database::Database;
+use sqlite3::cursor::Cursor;
+use sqlite3::types::{BindArg,Text,Integer};
 use std::hashmap::HashMap;
 use std::io::fs;
 use std::option::Option;
@@ -31,7 +32,7 @@ impl ContentDirectory {
             fail!("No directory supplied");
         }
         let path = ":memory:";
-        let db = match sqlite::open(path) {
+        let db = match sqlite3::open(path) {
             Ok(db)  => db,
             Err(m)  => fail!(m)
         };
@@ -63,7 +64,7 @@ impl ContentDirectory {
 
         let sql = "select path from library where id = " + id;
 
-        let cursor : sqlite::cursor::Cursor = match self.db.prepare(sql, &None) {
+        let cursor : sqlite3::cursor::Cursor = match self.db.prepare(sql, &None) {
             Err(e) => fail!("Error: {}", e.to_str()),
             Ok(c)   => c
         };
@@ -410,17 +411,17 @@ fn escape_didl(mut s: ~str) -> ~str {
     s
 }
 
-struct ResultItemIterator {
-    cursor: sqlite::cursor::Cursor,
+struct ResultItemIterator <'db> {
+    cursor: Cursor<'db>,
 }
 
-impl ResultItemIterator {
-    fn new(cursor: sqlite::cursor::Cursor) -> ResultItemIterator {
-        ResultItemIterator { cursor: cursor }
+impl <'db> ResultItemIterator <'db> {
+    fn new<'db> (cursor: Cursor<'db> ) -> ResultItemIterator<'db> {
+         ResultItemIterator { cursor: cursor }
     }
 }
 
-impl  Iterator <ResultItem>  for ResultItemIterator {
+impl  <'db> Iterator <ResultItem>  for ResultItemIterator <'db> {
     fn next(&mut self) -> Option<ResultItem> {
 
         let res = match self.cursor.step_row() {
