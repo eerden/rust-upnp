@@ -1,0 +1,12 @@
+[submodule "rustsqlite"]
+	path = rustsqlite
+	url = https://github.com/linuxfood/rustsqlite.git
+[submodule "RustyXML"]
+	path = RustyXML
+	url = https://github.com/Florob/RustyXML.git
+[submodule "deps/rustsqlite"]
+	path = deps/rustsqlite
+	url = https://github.com/linuxfood/rustsqlite.git
+[submodule "deps/RustyXML"]
+	path = deps/RustyXML
+	url = https://github.com/Florob/RustyXML.git
