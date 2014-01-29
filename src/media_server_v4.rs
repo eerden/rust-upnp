@@ -34,13 +34,13 @@ impl MediaServer {
             (GET, ~"/rootDesc.xml") => {
                 do spawn    {
                     debug!("MediaServer::dispatch() : Root doc requested.");
-                    send_xml_file("rootDesc.xml",req);
+                    send_xml_file("xml_templates/rootDesc.xml",req);
                 }
             },
             (GET,~"/content_dir.xml") => {
                 do spawn    {
                     debug!("MediaServer::dispatch() : Content directory service SCPD doc requested.");
-                    send_xml_file("content_dir.xml",req);
+                    send_xml_file("xml_templates/content_dir.xml",req);
                 }
             },
 
