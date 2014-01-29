@@ -2,3 +2,5 @@
 *.db
 libupnp-*
 test_server
+lib/
+build/
