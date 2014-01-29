@@ -37,3 +37,8 @@ rust_crate(src/test_server.rs
     DESTINATION bin
     DEPENDS "upnp"
     )
+
+add_custom_command(TARGET test_server PRE_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/xml_templates bin/xml_templates
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/src/icon.png bin/icon.png
+    )
