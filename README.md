@@ -27,11 +27,14 @@ Try it:
 
 - Clone the repository with `--recursive` to get the submodules: `git clone --recursive https://github.com/eerden/rust-upnp.git`
 - In rust-upnp folder: 
-    mkdir build
-    cd build
-    cmake ..
-    make test_server
-    cd bin
-    ./test_server --dir /path/to/your/media/directory
+~~~
+mkdir build
+cd build
+cmake ..
+make test_server
+
+cd bin
+./test_server --dir /path/to/your/media/directory
+~~~
 
 It should show up as `ZAP` on your media player's devices list with a red 'Z' icon.
