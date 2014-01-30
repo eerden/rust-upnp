@@ -8,7 +8,7 @@ use std::str;
 
 pub fn listen (addr: &str, server_chan: ~SharedChan<Request>) {
     let address = addr.to_owned();
-    do spawn {
+    spawn(proc(){
         let socket_addr = from_str(address).unwrap();
         let listener = TcpListener::bind(socket_addr);
         let mut acceptor = listener.listen().unwrap();
@@ -18,12 +18,12 @@ pub fn listen (addr: &str, server_chan: ~SharedChan<Request>) {
                 None    => fail!("Can't get a TcpStream from the std::io::Acceptor!")
             };
             let  chan = server_chan.clone();
-            do spawn {
+            spawn(proc(){
                 let request = Request::new(stream);
                 chan.try_send(request);
-            }
+            })
         }
-    }
+    })
 }
 
 pub struct Request {

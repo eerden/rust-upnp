@@ -26,36 +26,36 @@ impl MediaServer {
         let (method, url)  = (req.method.clone(), req.url.clone());
         match (method, url) {
             (GET, ~"/icon.png") => {
-                do spawn    {
+                spawn(proc(){
                     debug!("MediaServer:::dispatch() Icon requested.");
                     send_icon("icon.png",req);
-                }
+                })
             },
             (GET, ~"/rootDesc.xml") => {
-                do spawn    {
+                spawn(proc(){
                     debug!("MediaServer::dispatch() : Root doc requested.");
                     send_xml_file("xml_templates/rootDesc.xml",req);
-                }
+                })
             },
             (GET,~"/content_dir.xml") => {
-                do spawn    {
+                spawn(proc(){
                     debug!("MediaServer::dispatch() : Content directory service SCPD doc requested.");
                     send_xml_file("xml_templates/content_dir.xml",req);
-                }
+                })
             },
 
             (GET,~"/ConnectionMgr.xml") => {
-                do spawn    {
+                spawn(proc(){
                     debug!("MediaServer::dispatch() : ConnectionMgr.xml requested: BOOM!");
                     //send_xml_file("content_dir.xml",req);
-                }
+                })
             },
 
             (GET,~"/X_MS_MediaReceiverRegistrar.xml") => {
-                do spawn    {
+                spawn(proc(){
                     debug!("MediaServer::dispatch() : X_MS_MediaReceiverRegistrar.xml  requested: BOOM!");
                     //send_xml_file("content_dir.xml",req);
-                }
+                })
             },
 
             (POST,~"/control/content_dir") => {
@@ -185,7 +185,7 @@ NTS:ssdp:alive\r\n\r\n"
         };
 
 
-        do spawn {
+        spawn(proc(){
             let mut start : i64 = 0;
             match request.headers.find_copy(&~"Range") {
                 None => (),
@@ -211,7 +211,7 @@ NTS:ssdp:alive\r\n\r\n"
                     None    => break
                 }
             }
-        }
+        })
     }
 }
 
