@@ -1,7 +1,9 @@
 use super::{http,sqlite3,template,magic};
+use sqlite3::types::{BindArg,Text};
 use sqlite3::database::Database;
 use sqlite3::cursor::Cursor;
-use sqlite3::types::{BindArg,Text,Integer};
+use result_item::ResultItem;
+use result_item::ResultItemIterator;
 use std::hashmap::HashMap;
 use std::io::fs;
 use std::option::Option;
@@ -10,6 +12,8 @@ use std::str;
 use super::http::Request;
 use xml::Element;
 
+static DIDL_HEADER : &'static str  =  r#"<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dlna="urn:schemas-dlna-org:metadata-1-0/">"#;
+
 pub struct ContentDirectory{
     db: Database,
     library_dir: ~str
@@ -17,8 +21,6 @@ pub struct ContentDirectory{
 
 impl ContentDirectory {
     //TODO: Use prepared statements.
-    //TODO: Find out how other projects handle this.
-    //
     //MediaHouse tries to get `Filename.{srt,psb,mpl,ssa,txt...}` for subtitles. For this, 
     //this function :
     //1 - first finds the full path of a file from the database using the id of the db entry.
@@ -38,7 +40,6 @@ impl ContentDirectory {
         };
         ContentDirectory{db: db, library_dir: lib_dir}
     }
-
 
     pub fn get_item_path(&self, url: ~str) -> Option<Path> {
 
@@ -144,6 +145,7 @@ impl ContentDirectory {
         println!("{} items added to the library.", rowid);
     }
 
+    //TODO: Take a look at std::io::fs::walk_dir() and std::io::fs::Directories
     fn scan(&self, dir: &Path, parent_id: i64) -> uint {
         let ls =  fs::readdir(dir);
         for node in ls.iter(){
@@ -192,6 +194,7 @@ impl ContentDirectory {
         ls.len()
     }
 
+    //TODO: MISSING actions!
     pub fn get_search_capabilities(){}
     pub fn get_sort_capabilities(){}
     pub fn get_feature_list(){} 
@@ -223,7 +226,6 @@ impl ContentDirectory {
 
     //TODO: Write prepared statements.
     fn get_content_as_xml(&self, xml_action: ~Element) -> ~str {
-        let mut item_list : ~[~ResultItem] = ~[];
         let action = BrowseAction::new(xml_action);
 
         // 0 means root object is requested. 
@@ -239,71 +241,11 @@ impl ContentDirectory {
             Err(e) => fail!("Error: {}", e.to_str()),
             Ok(c)   => c
         };
-
         let mut result_iter = ResultItemIterator::new(cursor);
-
-        for i in result_iter {
-            item_list.push(~i);
-        }
-
-        let out = content_xml(item_list);
-        out
-    }
-
-}
-
-#[deriving(Clone)]
-struct ResultItem {
-    id: i64,
-    is_dir: bool,
-    parent_id: i64,
-    child_count: i64,
-    path: Path,
-    mime: Option<~str>
-}
-
-impl ResultItem {
-    fn to_didl(&self) -> ~str {
-
-        let mut out : ~str;
-        let filename_str = match self.path.filename_str() {
-            Some(s) => s,
-            None    => fail!("Can't produce a filename string from path.")
-        };
-
-        if self.is_dir {
-            let open_tag = "<container id=\""+ self.id.to_str() +"\" parentID=\"" + self.parent_id.to_str()
-                + "\" childCount=\""+ self.child_count.to_str() +"\" restricted=\"1\">";
-
-            let class = "<upnp:class>object.container.storageFolder</upnp:class>";
-            let title = "<dc:title>" + filename_str + "</dc:title>";
-            let storage_used = "<upnp:storageUsed>-1</upnp:storageUsed>";
-            let close_tag = "</container>";
-            out = open_tag + title + class + storage_used + close_tag;
-
-        } else {
-
-            let extension = match self.path.extension_str() {
-                Some(e) => e,
-                None    => "",
-            };
-
-            let mime = match self.mime {
-                Some(ref m) => m.as_slice(),
-                None    => fail!("Can't retreive ResultItem::mime"),
-            };
-
-            let open_tag = "<item id=\""+ self.id.to_str() +"\" parentID=\"" + self.parent_id.to_str() + "\" restricted=\"1\">";
-            let title = "<dc:title>" + filename_str + "</dc:title>";
-            let res =  r#"<res protocolInfo="http-get:*:"# + mime + r#":*">http://192.168.1.3:8900/MediaItems/"#+ self.id.to_str() + "." + extension + "</res>";
-            let class = "<upnp:class>object.item.videoItem</upnp:class>";
-            let close_tag = "</item>";
-            out = open_tag + title + res + class + close_tag;
-        }
+        let out = content_xml(result_iter.collect());
         out
     }
 }
-
 
 struct BrowseAction {
     name: ~str,
@@ -315,17 +257,11 @@ struct BrowseAction {
     sort_criteria: ~str,
 }
 
-fn content_xml(list: ~[~ResultItem]) -> ~str {
-    let mut out : ~[~str] = ~[];
+fn content_xml(list: ~[ResultItem]) -> ~str {
     let mut template = template::new("xml_templates/browse.xml");
-
-    out.push(~r#"<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dlna="urn:schemas-dlna-org:metadata-1-0/">"#);
-
     let number_returned = list.len().to_str();
-    for item in list.iter() {
-        out.push(item.to_didl());
-    }
-
+    let mut out : ~[~str] = list.iter().map(|item| item.to_didl()).collect();
+    out.unshift(DIDL_HEADER.to_owned());
     template.set_var("result", escape_didl(out.concat()));
     template.set_var("number_returned", number_returned);
     template.set_var("total_matches", number_returned);
@@ -341,7 +277,6 @@ impl BrowseAction {
         let mut starting_index: i64 = 0;
         let mut requested_count: i64 = 0;
         let mut sort_criteria: ~str = ~"";
-
         let body : &Element = match soap.child_with_name_and_ns("Body", Some(~"http://schemas.xmlsoap.org/soap/envelope/" )) {
             Some(e) => e,
             None    => fail!("Can't get the Body element from soap object.")
@@ -391,112 +326,11 @@ impl BrowseAction {
     }
 }
 
-impl ToStr for BrowseAction {
-    fn to_str(&self) -> ~str {
-        ~"name: " + self.name + "\n"
-            +"object_id: " + self.object_id.to_str() + "\n"
-            +"browse_flag: " + self.browse_flag + "\n"
-            +"filter: " + self.filter + "\n"
-            +"starting_index: " + self.starting_index.to_str() + "\n"
-            +"requested_count: " + self.requested_count.to_str() + "\n"
-            +"sort_criteria: " + self.sort_criteria + "\n"
-    }
-}
-
+//TODO: Look at the specs to find out what exactly should be escaped. 
 fn escape_didl(mut s: ~str) -> ~str {
     s = s.replace("&", "&amp;amp;");
     s = s.replace("<", "&lt;");
     s = s.replace(">", "&gt;");
     s = s.replace("\"", "&quot;");
     s
-}
-
-struct ResultItemIterator <'db> {
-    cursor: Cursor<'db>,
-}
-
-impl <'db> ResultItemIterator <'db> {
-    fn new<'db> (cursor: Cursor<'db> ) -> ResultItemIterator<'db> {
-         ResultItemIterator { cursor: cursor }
-    }
-}
-
-impl  <'db> Iterator <ResultItem>  for ResultItemIterator <'db> {
-    fn next(&mut self) -> Option<ResultItem> {
-
-        let res = match self.cursor.step_row() {
-            Ok(r) => r,
-            Err(e) => fail!("Error while iterating over cursor. Error: {}", e.to_str()) 
-        };
-
-        //Exit if there's no result.
-        let mut row_map = match res {
-            Some(m) => m,
-            None    => return None,
-        };
-
-        let path = match row_map.pop(&~"path") {
-            Some(p) => p,
-            None => fail!("Can't find column `path` in row")
-        };
-
-        let id = match row_map.pop(&~"id") {
-            Some(i) => i,
-            None => fail!("Can't find column `id` in row ")
-        };
-
-        let is_dir = match row_map.pop(&~"is_dir") {
-            Some(d) => d, None => fail!("Can't find column `is_dir` in row ")
-        };
-
-        let parent_id = match row_map.pop(&~"parent_id") {
-            Some(pi) => pi, None => fail!("Can't find column `parent_id` in row ")
-        };
-
-        let child_count = match row_map.pop(&~"child_count") {
-            Some(cc) => cc, None => fail!("Can't find column `child_count` in row ")
-        };
-
-        let mime = match row_map.pop(&~"mime") {
-            Some(m) => m, None => fail!("Can't find column `mime` in row ")
-        };
-
-        //TODO: Check if the file actually exists. 
-        //Otherwise this will cause problems if the MediaServer::update() is not run everytime, 
-        //which is likely if a file is used for db insetad of memory.
-        match (id,path,is_dir,child_count, parent_id, mime) {
-
-            (Integer(ref id), Text(ref path_str), Integer(0),Integer(0), Integer(p_id), Text(ref m)) => {
-                let path : Path = match from_str(*path_str) {
-                    Some(p) => p,
-                    None    => fail!("Can't make a Path using from_str() with the value of `path` column.") 
-                };
-                    let out = ResultItem {
-                        id:*id as i64,
-                        is_dir: false,
-                        parent_id: p_id as i64,
-                        child_count: 0i64,
-                        path: path,
-                        mime:Some(m.clone())
-                    };
-                    Some(out)
-            },
-            (Integer(ref i), Text(ref p), Integer(1),Integer(child_count), Integer(p_id), _) => {
-                let path : Path = match from_str(*p) {
-                    Some(p) => p,
-                    None    => fail!("Can't make a Path using from_str() with the value of `path` column.") 
-                };
-                   let out =  ResultItem {
-                        id:*i as i64,
-                        is_dir: true,
-                        parent_id: p_id as i64,
-                        child_count: child_count as i64,
-                        path: path,
-                        mime: None
-                    };
-                   Some(out)
-            },
-            _       => fail!("Could not create a result item."),
-        }
-    }
 }

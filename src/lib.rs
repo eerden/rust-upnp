@@ -13,3 +13,4 @@ pub mod ssdp;
 pub mod http;
 pub mod template;
 pub mod magic;
+pub mod result_item;
