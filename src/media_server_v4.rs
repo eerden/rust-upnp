@@ -54,7 +54,7 @@ impl MediaServer {
             (GET,~"/X_MS_MediaReceiverRegistrar.xml") => {
                 spawn(proc(){
                     debug!("MediaServer::dispatch() : X_MS_MediaReceiverRegistrar.xml  requested: BOOM!");
-                    //send_xml_file("content_dir.xml",req);
+                    send_xml_file("xml_templates/X_MS_media_receiver_registrar.xml",req);
                 })
             },
 
@@ -103,7 +103,7 @@ impl MediaServer {
 HOST:239.255.255.250:1900\r
 CACHE-CONTROL:max-age=20\r
 LOCATION:http://192.168.1.3:8900/rootDesc.xml\r
-SERVER: 3.12.1-3-ARCH DLNADOC/1.50 UPnP/1.0 MiniDLNA/1.1.1\r
+SERVER: 3.12.1-3-ARCH DLNADOC/1.50 UPnP/1.0 Zap/1.1.1\r
 NT:uuid:4d696e69-444c-164e-9d41-e0cb4ebb5911\r
 USN:uuid:4d696e69-444c-164e-9d41-e0cb4ebb5911\r
 NTS:ssdp:alive\r\n\r\n"
@@ -116,7 +116,7 @@ NTS:ssdp:alive\r\n\r\n"
 HOST:239.255.255.250:1900\r
 CACHE-CONTROL:max-age=20\r
 LOCATION:http://192.168.1.3:8900/rootDesc.xml\r
-SERVER: 3.12.1-3-ARCH DLNADOC/1.50 UPnP/1.0 MiniDLNA/1.1.1\r
+SERVER: 3.12.1-3-ARCH DLNADOC/1.50 UPnP/1.0 Zap/1.1.1\r
 NT:upnp:rootdevice\r
 USN:uuid:4d696e69-444c-164e-9d41-e0cb4ebb5911::upnp:rootdevice\r
 NTS:ssdp:alive\r\n\r\n"
@@ -127,7 +127,7 @@ NTS:ssdp:alive\r\n\r\n"
 HOST:239.255.255.250:1900\r
 CACHE-CONTROL:max-age=20\r
 LOCATION:http://192.168.1.3:8900/rootDesc.xml\r
-SERVER: 3.12.1-3-ARCH DLNADOC/1.50 UPnP/1.0 MiniDLNA/1.1.1\r
+SERVER: 3.12.1-3-ARCH DLNADOC/1.50 UPnP/1.0 Zap/1.1.1\r
 NT:urn:schemas-upnp-org:device:MediaServer:1\r
 USN:uuid:4d696e69-444c-164e-9d41-e0cb4ebb5911::urn:schemas-upnp-org:device:MediaServer:1\r
 NTS:ssdp:alive\r\n\r\n"
@@ -140,7 +140,7 @@ NTS:ssdp:alive\r\n\r\n"
 HOST:239.255.255.250:1900\r
 CACHE-CONTROL:max-age=20\r
 LOCATION:http://192.168.1.3:8900/rootDesc.xml\r
-SERVER: 3.12.1-3-ARCH DLNADOC/1.50 UPnP/1.0 MiniDLNA/1.1.1\r
+SERVER: 3.12.1-3-ARCH DLNADOC/1.50 UPnP/1.0 Zap/1.1.1\r
 NT:urn:schemas-upnp-org:service:ContentDirectory:4\r
 USN:uuid:4d696e69-444c-164e-9d41-e0cb4ebb5911::urn:schemas-upnp-org:service:ContentDirectory:4\r
 NTS:ssdp:alive\r\n\r\n"
@@ -152,7 +152,7 @@ NTS:ssdp:alive\r\n\r\n"
 HOST:239.255.255.250:1900\r
 CACHE-CONTROL:max-age=20\r
 LOCATION:http://192.168.1.3:8900/rootDesc.xml\r
-SERVER: 3.12.1-3-ARCH DLNADOC/1.50 UPnP/1.0 MiniDLNA/1.1.1\r
+SERVER: 3.12.1-3-ARCH DLNADOC/1.50 UPnP/1.0 Zap/1.1.1\r
 NT:urn:schemas-upnp-org:service:ConnectionManager:1\r
 USN:uuid:4d696e69-444c-164e-9d41-e0cb4ebb5911::urn:schemas-upnp-org:service:ConnectionManager:1\r
 NTS:ssdp:alive\r\n\r\n"
@@ -164,7 +164,7 @@ NTS:ssdp:alive\r\n\r\n"
 HOST:239.255.255.250:1900\r
 CACHE-CONTROL:max-age=20\r
 LOCATION:http://192.168.1.3:8900/rootDesc.xml\r
-SERVER: 3.12.1-3-ARCH DLNADOC/1.50 UPnP/1.0 MiniDLNA/1.1.1\r
+SERVER: 3.12.1-3-ARCH DLNADOC/1.50 UPnP/1.0 Zap/1.1.1\r
 NT:urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1\r
 USN:uuid:4d696e69-444c-164e-9d41-e0cb4ebb5911::urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1\r
 NTS:ssdp:alive\r\n\r\n"
@@ -186,21 +186,10 @@ NTS:ssdp:alive\r\n\r\n"
 
 
         spawn(proc(){
-            let mut start : i64 = 0;
-            match request.headers.find_copy(&~"Range") {
-                None => (),
-                Some(r) => {
-                    start = get_byte_range(r);
-                },
-            }
             let mut file = File::open(&vid_path);
-            file.seek(start, SeekSet);
-            let pos = file.tell();
-            debug!("MediaServer::send_video() Start position: {} ", pos.to_str());
             let file_length = ::std::io::fs::stat(&vid_path).size;
-            let content_length = file_length - pos;
             let buf = BufferedReader::new(file);
-            let content_length_header = ("Content-Length: " + content_length.to_str() + "\r\n\r\n").into_bytes();
+            let content_length_header = ("Content-Length: " + file_length.to_str() + "\r\n\r\n").into_bytes();
             let mut request = request;
             let mut buf = buf;
             request.stream.write(http::default_vid_headers());
@@ -213,35 +202,6 @@ NTS:ssdp:alive\r\n\r\n"
             }
         })
     }
-}
-
-
-//TODO: This is horrible. For every video MediaHouse tries things like videoname.{srt,txt...}.
-//Send a proper 404 msg.
-//Details are at https://tools.ietf.org/html/rfc2616#section-3.12 and 
-//https://tools.ietf.org/html/rfc2616#section-14.35
-fn get_byte_range(rstr: &str) -> i64{
-    //bytes=[start]-[end]
-    //bytes=[start]- for to the end
-    let mut out : i64 = 0;
-    let s = rstr.trim().slice_from(6);;
-    let dash_pos = match s.find('-') {
-        Some(pos)   => pos,
-        None        => fail!("Can't find the '-' character in Range header")
-
-    };
-    if s.len() > dash_pos + 1 {
-        //more after '-'
-
-    } else { 
-        let intstr = s.slice_to(dash_pos );
-        out = match from_str(intstr) {
-            Some(bytes)   => bytes,
-            None        => fail!("Can't find the '-' in Range header")
-        };
-    }
-
-    out
 }
 
 fn send_xml_file(filename: &str, mut request: Request) {
