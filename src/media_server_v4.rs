@@ -44,10 +44,10 @@ impl MediaServer {
                 })
             },
 
-            (GET,~"/ConnectionMgr.xml") => {
+            (GET,~"/connection_manager.xml") => {
                 spawn(proc(){
                     debug!("MediaServer::dispatch() : ConnectionMgr.xml requested: BOOM!");
-                    //send_xml_file("content_dir.xml",req);
+                    send_xml_file("xml_templates/connection_manager.xml",req);
                 })
             },
 

@@ -33,20 +33,20 @@
                 <eventSubURL>/evt/content_dir</eventSubURL>
                 <SCPDURL>/content_dir.xml</SCPDURL>
             </service>
-            <!--<service>-->
-                <!--<serviceType>urn:schemas-upnp-org:service:ConnectionManager:1</serviceType>-->
-                <!--<serviceId>urn:upnp-org:serviceId:ConnectionManager</serviceId>-->
-                <!--<controlURL>/control/ConnectionMgr</controlURL>-->
-                <!--<eventSubURL>/evt/ConnectionMgr</eventSubURL>-->
-                <!--<SCPDURL>/ConnectionMgr.xml</SCPDURL>-->
-            <!--</service>-->
-            <!--<service>-->
-                <!--<serviceType>urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1</serviceType>-->
-                <!--<serviceId>urn:microsoft.com:serviceId:X_MS_MediaReceiverRegistrar</serviceId>-->
-                <!--<controlURL>/control/X_MS_MediaReceiverRegistrar</controlURL>-->
-                <!--<eventSubURL/>-->
-                <!--<SCPDURL>/X_MS_MediaReceiverRegistrar.xml</SCPDURL>-->
-            <!--</service>-->
+            <service>
+                <serviceType>urn:schemas-upnp-org:service:ConnectionManager:1</serviceType>
+                <serviceId>urn:upnp-org:serviceId:ConnectionManager</serviceId>
+                <controlURL>/control/connection_manager</controlURL>
+                <eventSubURL>/evt/connection_manager</eventSubURL>
+                <SCPDURL>/connection_manager.xml</SCPDURL>
+            </service>
+            <service>
+                <serviceType>urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1</serviceType>
+                <serviceId>urn:microsoft.com:serviceId:X_MS_MediaReceiverRegistrar</serviceId>
+                <controlURL>/control/X_MS_MediaReceiverRegistrar</controlURL>
+                <eventSubURL/>
+                <SCPDURL>/X_MS_MediaReceiverRegistrar.xml</SCPDURL>
+            </service>
         </serviceList>
     </device>
 </root>
