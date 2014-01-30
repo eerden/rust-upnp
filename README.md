@@ -19,13 +19,19 @@ Requirements:
 
 - RustyXml for parsing incoming SOAP requests. https://github.com/Florob/RustyXML
 - rustsqlite for storing/retrieving media information. https://github.com/linuxfood/rustsqlite
+- CMake version 2.8 or higher. Take a look at https://github.com/SiegeLord/RustCMake if you want to use CMake with rust.
 - A fairly new version of rust. https://github.com/mozilla/rust
 - A **capable** upnp renderer. (MediaHouse on Android works. Next targets are going to be VLC, and Xbox360).
 
 Try it:
 
-- Compile lib.rs `rustc lib.rs -L /path/to/required/libs`.
-- Compile test_server.rs `rustc test_server.rs -L .`
-- Run it with `test_server --dir /path/to/media/directory`.
+- Clone the repository with `--recursive` to get the submodules: `git clone --recursive https://github.com/eerden/rust-upnp.git`
+- In rust-upnp folder: 
+    mkdir build
+    cd build
+    cmake ..
+    make test_server
+    cd bin
+    ./test_server --dir /path/to/your/media/directory
 
-It should show up as `ZAP` on your media player's devices list.
+It should show up as `ZAP` on your media player's devices list with a red 'Z' icon.
