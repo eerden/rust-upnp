@@ -1,5 +1,5 @@
 use super::{http,sqlite3,template,magic};
-use sqlite3::types::{BindArg,Text};
+use sqlite3::types::{BindArg,Text,Integer};
 use sqlite3::database::Database;
 use sqlite3::cursor::Cursor;
 use result_item::ResultItem;
@@ -20,7 +20,6 @@ pub struct ContentDirectory{
 }
 
 impl ContentDirectory {
-    //TODO: Use prepared statements.
     //MediaHouse tries to get `Filename.{srt,psb,mpl,ssa,txt...}` for subtitles. For this, 
     //this function :
     //1 - first finds the full path of a file from the database using the id of the db entry.
@@ -53,9 +52,15 @@ impl ContentDirectory {
             None    => return None
         };
 
-        let id = match path.filestem_str() {
+        let filestem = match path.filestem_str() {
             Some(i) => i,
             None    => return None
+        };
+        
+        let id : int = match from_str(filestem) {
+            Some(i) => i,
+            None    => return None
+
         };
 
         let requested_extension : &str = match path.extension_str() {
@@ -63,12 +68,13 @@ impl ContentDirectory {
             None    => return None
         };
 
-        let sql = "select path from library where id = " + id;
+        let sql = "select path from library where id = ?";
 
         let cursor : sqlite3::cursor::Cursor = match self.db.prepare(sql, &None) {
             Err(e) => fail!("Error: {}", e.to_str()),
             Ok(c)   => c
         };
+        cursor.bind_param(1, &Integer(id));
 
         let sql_result :  Option<HashMap<~str, BindArg>> = match cursor.step_row() {
             Ok(r) => r,
@@ -224,23 +230,23 @@ impl ContentDirectory {
         req.stream.write(response);
     }
 
-    //TODO: Write prepared statements.
     fn get_content_as_xml(&self, xml_action: ~Element) -> ~str {
         let action = BrowseAction::new(xml_action);
 
         // 0 means root object is requested. 
         // It's  not a good idea to have 0 as rowid in sqlite.
-        let parent_id = match action.object_id.clone() {
-            ~0i64 => ~1,
-            x => x
+        let parent_id : int = match action.object_id.clone() {
+            ~0i64 => 1,
+            x => *x as int
         };
 
-        let sql = "SELECT * FROM library WHERE parent_id = " + parent_id.to_str();
+        let sql = "SELECT * FROM library WHERE parent_id = ?";
 
         let cursor = match self.db.prepare(sql, &None) {
             Err(e) => fail!("Error: {}", e.to_str()),
             Ok(c)   => c
         };
+        cursor.bind_param(1, &Integer(parent_id));
         let mut result_iter = ResultItemIterator::new(cursor);
         let out = content_xml(result_iter.collect());
         out
