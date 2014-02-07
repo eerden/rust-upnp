@@ -153,7 +153,11 @@ impl ContentDirectory {
 
     //TODO: Take a look at std::io::fs::walk_dir() and std::io::fs::Directories
     fn scan(&self, dir: &Path, parent_id: i64) -> uint {
-        let ls =  fs::readdir(dir);
+        let ls =  match fs::readdir(dir) {
+            Ok(paths)   => paths,
+            Err(e)      => fail!("Failed reading contents of directory: `{}`. Error: {}", dir.display(), e)
+        };
+
         for node in ls.iter(){
             let mut is_dir = 0i;
             if node.is_dir() {

@@ -14,8 +14,8 @@ pub fn listen (addr: &str, server_chan: ~SharedChan<Request>) {
         let mut acceptor = listener.listen().unwrap();
         loop {
             let stream = match acceptor.accept(){
-                Some(s) => s,
-                None    => fail!("Can't get a TcpStream from the std::io::Acceptor!")
+                Ok(s) => s,
+                Err(e)    => fail!("Can't get a TcpStream from the std::io::Acceptor! Error: {}",e.to_str())
             };
             let  chan = server_chan.clone();
             spawn(proc(){
@@ -77,16 +77,16 @@ impl Request {
         let mut out : ~[~str] = ~[];
         loop {
             match stream.read_byte(){
-                None => (),
-                Some(b) if b as char =='\r' => (),
-                Some(b) if b as char == '\n' && got_rn == true => {
+                Err(e)    => { println!("Can't read from stream. Error: {}", e.to_str());break },
+                Ok(b) if b as char =='\r' => (),
+                Ok(b) if b as char == '\n' && got_rn == true => {
                     break;
                 },
-                Some(b) if b as char == '\n' => {
+                Ok(b) if b as char == '\n' => {
                     got_rn = true;
                     line.push(b);
                 },
-                Some(b) => {
+                Ok(b) => {
                     got_rn = false;
                     line.push(b);
                 }
@@ -112,8 +112,8 @@ impl Request {
         let mut counter = 0;
         loop {
             match stream.read_byte() {
-                None    => break,
-                Some(b) => {
+                Err(e)    => { println!("Can't read from stream. Error: {}", e.to_str());break },
+                Ok(b) => {
                     out.push(b);
                 }
 

@@ -106,7 +106,11 @@ pub fn new(filepath : &str) -> Template {
     let path = from_str(filepath).unwrap();
 
     let mut file = File::open(&path);
-    let content = file.read_to_str(); 
+
+    let content = match file.read_to_str() {
+        Err(e)  => fail!("Can't read template file. Err: {}", e.to_str()),
+        Ok(s)   => s
+    };
 
     let tags = scan_tags(content.as_slice());
     return Template { name:~"default", content:content, vars:vars, tags: tags }

@@ -46,14 +46,14 @@ impl MediaServer {
 
             (GET,~"/connection_manager.xml") => {
                 spawn(proc(){
-                    debug!("MediaServer::dispatch() : ConnectionMgr.xml requested: BOOM!");
+                    debug!("MediaServer::dispatch() : connection_manager.xml requested.");
                     send_xml_file("xml_templates/connection_manager.xml",req);
                 })
             },
 
             (GET,~"/X_MS_MediaReceiverRegistrar.xml") => {
                 spawn(proc(){
-                    debug!("MediaServer::dispatch() : X_MS_MediaReceiverRegistrar.xml  requested: BOOM!");
+                    debug!("MediaServer::dispatch() : X_MS_media_receiver_registrar.xml  requested.");
                     send_xml_file("xml_templates/X_MS_media_receiver_registrar.xml",req);
                 })
             },
@@ -181,13 +181,17 @@ NTS:ssdp:alive\r\n\r\n"
                 request.stream.write(http::code_404()); 
                 return
             }, //This is failure
-                    Some(p) => p
+            Some(p) => p
         };
 
 
         spawn(proc(){
             let mut file = File::open(&vid_path);
-            let file_length = ::std::io::fs::stat(&vid_path).size;
+            let file_length = match vid_path.stat() {
+                Ok(stat)    => stat.size,
+                Err(e)      => fail!("Error getting file information for file: {}. Error: {}", vid_path.display(), e)
+            };
+
             let buf = BufferedReader::new(file);
             let content_length_header = ("Content-Length: " + file_length.to_str() + "\r\n\r\n").into_bytes();
             let mut request = request;
@@ -196,8 +200,11 @@ NTS:ssdp:alive\r\n\r\n"
             request.stream.write(content_length_header);
             loop {
                 match buf.read_byte() {
-                    Some(b) => request.stream.write_u8(b),
-                    None    => break
+                    Ok(b)   => match request.stream.write_u8(b) {
+                        Ok(res) => (),
+                        Err(e)  => fail!("Can't write byte to stream. Error: {}", e)
+                    },
+                    Err(e)  => fail!("Can't read byte from file buffer. Error: {}", e)
                 }
             }
         })
@@ -207,7 +214,11 @@ NTS:ssdp:alive\r\n\r\n"
 fn send_xml_file(filename: &str, mut request: Request) {
     let path = Path::new("./" + filename);
     let mut file = File::open(&path);
-    let buf = file.read_to_end();
+    let buf = match file.read_to_end() {
+        Ok(b)   => b,
+        Err(e)  => fail!("Can't read file : {}. Error: {}", path.display(), e.to_str())
+    };
+
     let content_length_header = ("Content-Length: " + buf.len().to_str() + "\r\n\r\n").into_bytes();
     request.stream.write(http::default_xml_headers());
     request.stream.write(content_length_header);
@@ -217,7 +228,11 @@ fn send_xml_file(filename: &str, mut request: Request) {
 fn send_icon(filename: &str, mut request: Request) {
     let path = Path::new("./" + filename);
     let mut file = File::open(&path);
-    let buf = file.read_to_end();
+    let buf = match file.read_to_end() {
+        Ok(b)   => b,
+        Err(e)  => fail!("Can't read file : {}. Error: {}", path.display(), e.to_str())
+    };
+
     let content_length_header = ("Content-Length: " + buf.len().to_str() + "\r\n\r\n").into_bytes();
     request.stream.write(http::default_img_headers());
     request.stream.write(content_length_header);
